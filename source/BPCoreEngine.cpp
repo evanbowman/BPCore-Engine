@@ -192,6 +192,16 @@ static const struct {
                   Float(lua_tonumber(L, 3))
               });
 
+          const int argc = lua_gettop(L);
+          if (argc > 3) {
+              const bool xflip = lua_toboolean(L, 4);
+              if (argc > 4) {
+                  bool yflip = lua_toboolean(L, 5);
+                  spr.set_flip({xflip, yflip});
+              }
+              spr.set_flip({xflip, false});
+          }
+
           platform->screen().draw(spr);
 
           return 0;
