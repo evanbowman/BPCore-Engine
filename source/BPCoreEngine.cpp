@@ -34,42 +34,13 @@ static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 }
 
 
-static void show_debug_image()
-{
-    platform->load_overlay_texture("overlay");
-    platform->load_tile1_texture("tilesheet_top");
-    platform->load_tile0_texture("title_1_flattened");
-
-    draw_image(*platform, 1, 0, 3, 30, 14, Layer::background);
-
-    const auto screen_tiles = calc_screen_tiles(*platform);
-
-    for (int i = 0; i < screen_tiles.x; ++i) {
-        platform->set_tile(Layer::background, i, 2, 9);
-    }
-
-    for (int i = 11; i < 23; ++i) {
-        platform->set_tile(Layer::background, i, 3, 9);
-    }
-
-    for (int x = 0; x < 16; ++x) {
-        for (int y = 0; y < 20; ++y) {
-            platform->set_tile(Layer::map_0, x, y, 1);
-            platform->set_tile(Layer::map_1, x, y, 0);
-        }
-    }
-}
-
-
 static const struct {
     const char* name_;
     int (*callback_)(lua_State*);
 } builtins[] = {
-    {"logint",
+    {"log",
      [](lua_State* L) -> int {
-         char buffer[32];
-         english__to_string(lua_tonumber(L, 1), buffer, 10);
-         info(*platform, buffer);
+         info(*platform, lua_tostring(L, 1));
          return 0;
      }},
     {"connect",
@@ -282,8 +253,6 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
     lua_atpanic(lua_, &lua_panic);
 
     luaL_openlibs(lua_);
-
-    show_debug_image();
 
     for (const auto& builtin : builtins) {
         lua_pushcfunction(lua_, builtin.callback_);
