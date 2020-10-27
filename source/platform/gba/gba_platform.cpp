@@ -1052,136 +1052,6 @@ static bool validate_overlay_texture_size(Platform& pfrm, size_t size)
 }
 
 
-COLD static void set_map_tile(u8 base, u16 x, u16 y, u16 tile_id, int palette)
-{
-    // NOTE: The game's tiles are 32x24px in size. GBA tiles are each
-    // 8x8. To further complicate things, the GBA's VRAM is
-    // partitioned into 32x32 tile screenblocks, so some 32x24px tiles
-    // cross over screenblocks in the vertical direction, and then the
-    // y-offset is one-tile-greater in the lower quadrants.
-
-    auto ref = [](u16 x_, u16 y_) { return x_ * 4 + y_ * 32 * 3; };
-
-    // Tiles at y=10 need to jump across a gap between screen blocks.
-    if (y == 10 and x > 7) {
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[base + 1][i + ref(x % 8, y)] =
-                (tile_id * 12 + i) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[base + 1][i + ref(x % 8, y) + 32] =
-                (tile_id * 12 + i + 4) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[base + 3][i + ref(x % 8, 0)] =
-                (tile_id * 12 + i + 8) | SE_PALBANK(palette);
-        }
-        return;
-    } else if (y == 10) {
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[base][i + ref(x, y)] =
-                (tile_id * 12 + i) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[base][i + ref(x, y) + 32] =
-                (tile_id * 12 + i + 4) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[base + 2][i + ref(x, 0)] =
-                (tile_id * 12 + i + 8) | SE_PALBANK(palette);
-        }
-        return;
-    }
-
-    auto screen_block = [&]() -> u16 {
-        if (x > 7 and y > 9) {
-            x %= 8;
-            y %= 10;
-            return base + 3;
-        } else if (y > 9) {
-            y %= 10;
-            return base + 2;
-        } else if (x > 7) {
-            x %= 8;
-            return base + 1;
-        } else {
-            return base;
-        }
-    }();
-
-    if (screen_block == base + 2 or screen_block == base + 3) {
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[screen_block][i + ref(x, y - 1) + 32] =
-                (tile_id * 12 + i) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[screen_block][i + ref(x, y - 1) + 64] =
-                (tile_id * 12 + i + 4) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[screen_block][i + ref(x, y - 1) + 96] =
-                (tile_id * 12 + i + 8) | SE_PALBANK(palette);
-        }
-    } else {
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[screen_block][i + ref(x, y)] =
-                (tile_id * 12 + i) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[screen_block][i + ref(x, y) + 32] =
-                (tile_id * 12 + i + 4) | SE_PALBANK(palette);
-        }
-        for (u32 i = 0; i < 4; ++i) {
-            MEM_SCREENBLOCKS[screen_block][i + ref(x, y) + 64] =
-                (tile_id * 12 + i + 8) | SE_PALBANK(palette);
-        }
-    }
-}
-
-
-static u16 get_map_tile(u8 base, u16 x, u16 y, int palette)
-{
-    // I know that this code is confusing, sorry! See comment in set_map_tile().
-
-    auto ref = [](u16 x_, u16 y_) { return x_ * 4 + y_ * 32 * 3; };
-
-    if (y == 10 and x > 7) {
-        return (MEM_SCREENBLOCKS[base][ref(x % 8, y)] &
-                ~(SE_PALBANK(palette))) /
-               12;
-    } else if (y == 10) {
-        return (MEM_SCREENBLOCKS[base][ref(x, y)] & ~(SE_PALBANK(palette))) /
-               12;
-    }
-
-    auto screen_block = [&]() -> u16 {
-        if (x > 7 and y > 9) {
-            x %= 8;
-            y %= 10;
-            return base + 3;
-        } else if (y > 9) {
-            y %= 10;
-            return base + 2;
-        } else if (x > 7) {
-            x %= 8;
-            return base + 1;
-        } else {
-            return base;
-        }
-    }();
-
-    if (screen_block == base + 2 or screen_block == base + 3) {
-        return (MEM_SCREENBLOCKS[screen_block][ref(x, y - 1) + 32] &
-                ~(SE_PALBANK(palette))) /
-               12;
-    } else {
-        return (MEM_SCREENBLOCKS[screen_block][ref(x, y)] &
-                ~(SE_PALBANK(palette))) /
-               12;
-    }
-}
-
-
 u16 Platform::get_tile(Layer layer, u16 x, u16 y)
 {
     switch (layer) {
@@ -1198,10 +1068,10 @@ u16 Platform::get_tile(Layer layer, u16 x, u16 y)
         return MEM_SCREENBLOCKS[sbb_bg_tiles][x + y * 32];
 
     case Layer::map_0:
-        return get_map_tile(sbb_t0_tiles, x, y, 0);
+        return MEM_SCREENBLOCKS[sbb_t0_tiles][x + y * 64];
 
     case Layer::map_1:
-        return get_map_tile(sbb_t1_tiles, x, y, 2);
+        return MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 64];
     }
     return 0;
 }
@@ -1872,6 +1742,32 @@ void Platform::Speaker::set_position(const Vec2<Float>&)
 }
 
 
+static void push_sound(const ActiveSoundInfo& info)
+{
+    modify_audio([&] {
+        if (not snd_ctx.active_sounds.full()) {
+            snd_ctx.active_sounds.push_back(info);
+
+        } else {
+            ActiveSoundInfo* lowest = snd_ctx.active_sounds.begin();
+            for (auto it = snd_ctx.active_sounds.begin();
+                 it not_eq snd_ctx.active_sounds.end();
+                 ++it) {
+                if (it->priority_ < lowest->priority_) {
+                    lowest = it;
+                }
+            }
+
+            if (lowest not_eq snd_ctx.active_sounds.end() and
+                lowest->priority_ < info.priority_) {
+                snd_ctx.active_sounds.erase(lowest);
+                snd_ctx.active_sounds.push_back(info);
+            }
+        }
+    });
+}
+
+
 void Platform::Speaker::play_sound(const char* name,
                                    int priority,
                                    std::optional<Vec2<Float>> position)
@@ -1881,28 +1777,16 @@ void Platform::Speaker::play_sound(const char* name,
 
     if (auto info = make_sound(name)) {
         info->priority_ = priority;
+        push_sound(*info);
+        return;
+    }
 
-        modify_audio([&] {
-            if (not snd_ctx.active_sounds.full()) {
-                snd_ctx.active_sounds.push_back(*info);
-
-            } else {
-                ActiveSoundInfo* lowest = snd_ctx.active_sounds.begin();
-                for (auto it = snd_ctx.active_sounds.begin();
-                     it not_eq snd_ctx.active_sounds.end();
-                     ++it) {
-                    if (it->priority_ < lowest->priority_) {
-                        lowest = it;
-                    }
-                }
-
-                if (lowest not_eq snd_ctx.active_sounds.end() and
-                    lowest->priority_ < priority) {
-                    snd_ctx.active_sounds.erase(lowest);
-                    snd_ctx.active_sounds.push_back(*info);
-                }
-            }
-        });
+    auto sound_file = platform->fs().get_file(name);
+    if (sound_file.data_) {
+        ActiveSoundInfo info {0, static_cast<s32>(sound_file.size_), 0, 0};
+        info.priority_ = priority;
+        info.data_ = reinterpret_cast<const s8*>(sound_file.data_);
+        push_sound(info);
     }
 }
 
@@ -2372,6 +2256,51 @@ void Platform::enable_glyph_mode(bool enabled)
 
 void Platform::load_overlay_texture(const char* name)
 {
+    StringBuffer<48> palette_file(name);
+    palette_file += ".pal";
+
+    const auto img = fs().get_file(name);
+    const auto palette = fs().get_file(palette_file.c_str());
+
+    u16 pal[16];
+
+    if (img.data_ and palette.data_) {
+
+        memcpy(pal, palette.data_, sizeof pal);
+
+        TextureData info;
+        info.name_ = name;
+        info.tile_data_ = (const unsigned int*)img.data_;
+        info.palette_data_ = pal;
+        info.tile_data_length_ = img.size_ / 4;
+        info.palette_data_length_ = 16;
+
+        init_palette(&info, overlay_palette, true);
+
+        for (int i = 0; i < 16; ++i) {
+            auto from = Color::from_bgr_hex_555(overlay_palette[i]);
+            if (not overlay_was_faded) {
+                MEM_BG_PALETTE[16 + i] = from.bgr_hex_555();
+            } else {
+                const auto c = nightmode_adjust(real_color(last_color));
+                MEM_BG_PALETTE[16 + i] = blend(from, c, last_fade_amt);
+            }
+        }
+
+        if (validate_overlay_texture_size(*this, info.tile_data_length_)) {
+            memcpy16((void*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0],
+                     info.tile_data_,
+                     info.tile_data_length_ * 2);
+        }
+
+        if (glyph_mode) {
+            for (auto& gm : ::glyph_table->obj_->mappings_) {
+                gm.reference_count_ = -1;
+            }
+        }
+        return;
+    }
+
     for (auto& info : overlay_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
@@ -2627,7 +2556,7 @@ static const auto custom_text_palette_count =
     custom_text_palette_end - custom_text_palette_begin;
 
 static PaletteBank custom_text_palette_write_ptr = custom_text_palette_begin;
-static const TextureData* custom_text_palette_source_texture = nullptr;
+// static const TextureData* custom_text_palette_source_texture = nullptr;
 
 
 void Platform::set_tile(u16 x, u16 y, TileDesc glyph, const FontColors& colors)
@@ -2639,18 +2568,19 @@ void Platform::set_tile(u16 x, u16 y, TileDesc glyph, const FontColors& colors)
     // If the current overlay texture changed, then we'll need to clear out any
     // palettes that we've constructed. The indices of the glyph binding sites
     // in the palette bank may have changed when we loaded a new texture.
-    if (custom_text_palette_source_texture and
-        custom_text_palette_source_texture not_eq current_overlay_texture) {
+    // FIXME!!!
+    // if (custom_text_palette_source_texture and
+    //     custom_text_palette_source_texture not_eq current_overlay_texture) {
 
-        for (auto p = custom_text_palette_begin; p < custom_text_palette_end;
-             ++p) {
-            for (int i = 0; i < 16; ++i) {
-                MEM_BG_PALETTE[p * 16 + i] = 0;
-            }
-        }
+    //     for (auto p = custom_text_palette_begin; p < custom_text_palette_end;
+    //          ++p) {
+    //         for (int i = 0; i < 16; ++i) {
+    //             MEM_BG_PALETTE[p * 16 + i] = 0;
+    //         }
+    //     }
 
-        custom_text_palette_source_texture = current_overlay_texture;
-    }
+    //     custom_text_palette_source_texture = current_overlay_texture;
+    // }
 
     const auto default_colors = font_color_indices();
 
@@ -2705,21 +2635,21 @@ void Platform::set_tile(Layer layer, u16 x, u16 y, u16 val)
         break;
 
     case Layer::map_1:
-        if (x > 15 or y > 19) {
+        if (x > 63 or y > 63) {
             return;
         }
-        set_map_tile(sbb_t1_tiles, x, y, val, 2);
+        MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 64] = val;
         break;
 
     case Layer::map_0:
-        if (x > 15 or y > 19) {
+        if (x > 63 or y > 63) {
             return;
         }
-        set_map_tile(sbb_t0_tiles, x, y, val, 0);
+        MEM_SCREENBLOCKS[sbb_t0_tiles][x + y * 64] = val;
         break;
 
     case Layer::background:
-        if (x > 31 or y > 32) {
+        if (x > 31 or y > 31) {
             return;
         }
         MEM_SCREENBLOCKS[sbb_bg_tiles][x + y * 32] = val;

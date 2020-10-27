@@ -81,6 +81,9 @@ int tonum(const char* str)
 
 Filesystem::FileData Filesystem::get_file(const char* name)
 {
+    if (not addr_) {
+        return {nullptr, 0};
+    }
     auto current = reinterpret_cast<const FileInfo*>(addr_);
 
     while (true) {

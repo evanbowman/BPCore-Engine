@@ -1,9 +1,15 @@
 
+texture(0, "overlay.bmp")
+tile(0, 111, 9, 9)
+tile(0, 110, 8, 9)
+tile(0, 91, 7, 9)
+tile(0, 1, 6, 9)
+
 
 text("Hello, world!", 3, 3)
 
 
-tilesheet(4, "spritesheet")
+texture(4, "spritesheet")
 
 
 music("music_as_colorful_as_ever.raw", 0)
@@ -11,7 +17,7 @@ music("music_as_colorful_as_ever.raw", 0)
 
 function main_loop(update, draw)
    while true do
-      update(getdelta())
+      update(delta())
       clear()
       draw()
       display()
@@ -24,9 +30,9 @@ dir = 0
 
 function update(dt)
    if btnp(4) then
-      tilesheet(2, "title_1_flattened")
+      texture(2, "title_1_flattened")
    elseif btnp(5) then
-      tilesheet(2, "title_2_flattened")
+      texture(2, "title_2_flattened")
    end
 
    if btnp(6) then
