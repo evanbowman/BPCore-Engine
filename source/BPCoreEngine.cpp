@@ -299,7 +299,7 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
         platform->enable_glyph_mode(true);
         platform->load_overlay_texture("overlay");
         pf.fill_overlay(112);
-        Text loading_text(pf, "loading...", {1, 1});
+        Text loading_text(pf, "loading...", {1, 18});
         platform->screen().display();
         fs_.init(pf);
         // platform->enable_glyph_mode(false);

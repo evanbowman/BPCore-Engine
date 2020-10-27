@@ -125,7 +125,7 @@ void start(Platform&);
 static Platform* platform;
 
 
-[[gnu::used]] alignas(4) static EWRAM_DATA u8 heap[180000];
+[[gnu::used]] alignas(4) static EWRAM_DATA u8 heap[220000];
 
 void *UMM_MALLOC_CFG_HEAP_ADDR = &heap;
 uint32_t UMM_MALLOC_CFG_HEAP_SIZE = sizeof heap;

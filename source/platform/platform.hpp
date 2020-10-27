@@ -205,7 +205,7 @@ public:
         char data_[SCRATCH_BUFFER_SIZE];
     };
 
-    static constexpr const int scratch_buffer_count = 20;
+    static constexpr const int scratch_buffer_count = 4;
     using ScratchBufferPtr = Rc<ScratchBuffer, scratch_buffer_count>;
 
     // Scratch buffers are sort of a blunt instrument. Designed for uncommon
