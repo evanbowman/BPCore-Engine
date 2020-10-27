@@ -52,4 +52,7 @@ function draw()
 end
 
 
+text(tostring(collectgarbage("count") * 1024), 3, 5)
+
+
 main_loop(update, draw)
