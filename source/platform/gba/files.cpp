@@ -1,7 +1,5 @@
 
 
-extern const unsigned char file_main[];
-//
 
 static const struct {
     const char* root_;
@@ -9,6 +7,4 @@ static const struct {
     const unsigned char* data_;
 } files[] = {
 
-    {"scripts", "main.lua", file_main},
-//
 };

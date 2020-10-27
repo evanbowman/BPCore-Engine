@@ -158,7 +158,6 @@ static const struct {
       }},
      {"tilesheet",
       [](lua_State* L) -> int {
-          [[gnu::unused]]
           const int layer = lua_tonumber(L, 1);
           const char* filename = lua_tostring(L, 2);
 
@@ -182,6 +181,36 @@ static const struct {
               break;
           }
 
+          return 0;
+      }},
+     {"spr",
+      [](lua_State* L) -> int {
+          Sprite spr;
+          spr.set_texture_index(lua_tointeger(L, 1));
+          spr.set_position({
+                  Float(lua_tonumber(L, 2)),
+                  Float(lua_tonumber(L, 3))
+              });
+
+          platform->screen().draw(spr);
+
+          return 0;
+      }},
+     {"tile",
+      [](lua_State* L) -> int {
+          const int l = lua_tointeger(L, 1);
+          const int t = lua_tointeger(L, 2);
+          const int x = lua_tointeger(L, 3);
+          const int y = lua_tointeger(L, 4);
+
+          switch (static_cast<Layer>(l)) {
+          case Layer::overlay:
+          case Layer::map_1:
+          case Layer::map_0:
+          case Layer::background:
+              platform->set_tile(static_cast<Layer>(l), x, y, t);
+              break;
+          }
           return 0;
       }}
 };

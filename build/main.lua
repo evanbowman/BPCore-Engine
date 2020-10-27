@@ -3,6 +3,9 @@
 text("Hello, world!", 3, 3)
 
 
+tilesheet(4, "spritesheet")
+
+
 function main_loop(update, draw)
    while true do
       update(getdelta())
@@ -21,9 +24,25 @@ function update(dt)
    end
 end
 
-
+i = 0
+dir = 0
 function draw()
 
+   if dir == 0 then
+      if i < 240 then
+         i = i + 1
+      else
+         dir = 1
+      end
+   else
+      if i > 0 then
+         i = i - 1
+      else
+         dir = 0
+      end
+   end
+
+   spr(15, i, 60)
 end
 
 
