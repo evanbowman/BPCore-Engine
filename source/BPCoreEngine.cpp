@@ -193,6 +193,64 @@ static const struct {
               break;
           }
           return 0;
+      }},
+     {"poke",
+      [](lua_State* L) -> int {
+          const auto addr = lua_tointeger(L, 1);
+          const u8 val = lua_tointeger(L, 2);
+          *((u8*)addr) = val;
+          return 0;
+      }},
+     {"poke4",
+      [](lua_State* L) -> int {
+          const auto addr = lua_tointeger(L, 1);
+          const u32 val = lua_tointeger(L, 2);
+          *((u32*)addr) = val;
+          return 0;
+      }},
+     {"peek",
+      [](lua_State* L) -> int {
+          const auto addr = lua_tointeger(L, 1);
+          lua_pushinteger(L, *((u8*)addr));
+          return 1;
+      }},
+     {"peek4",
+      [](lua_State* L) -> int {
+          const auto addr = lua_tointeger(L, 1);
+          lua_pushinteger(L, *((u32*)addr));
+          return 1;
+      }},
+     {"fade",
+      [](lua_State* L) -> int {
+          const auto amount = lua_tonumber(L, 1);
+          const int argc = lua_gettop(L);
+
+          switch (argc) {
+          case 1:
+              platform->screen().fade(amount);
+              break;
+
+          case 2:
+              platform->screen().fade(amount,
+                                      custom_color(lua_tonumber(L, 2)));
+              break;
+
+          case 3:
+              platform->screen().fade(amount,
+                                      custom_color(lua_tonumber(L, 2)),
+                                      {},
+                                      lua_toboolean(L, 3));
+              break;
+
+          case 4:
+              platform->screen().fade(amount,
+                                      custom_color(lua_tonumber(L, 2)),
+                                      {},
+                                      lua_toboolean(L, 3),
+                                      lua_toboolean(L, 4));
+              break;
+          }
+          return 0;
       }}
 };
 

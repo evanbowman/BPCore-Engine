@@ -22,6 +22,12 @@ function update(dt)
    elseif btnp(5) then
       tilesheet(2, "title_2_flattened")
    end
+
+   if btnp(6) then
+      fade(0.5)
+   elseif btnnp(6) then
+      fade(0)
+   end
 end
 
 i = 0
