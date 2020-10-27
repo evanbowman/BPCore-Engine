@@ -93,11 +93,6 @@ set(SOURCES
   ${SOURCE_DIR}/start.cpp)
 
 
-set(SOURCES
-  ${SOURCES}
-  ${SOURCE_DIR}/script/lisp.cpp)
-
-
 set(FILES_DIR ${SOURCE_DIR}/../)
 set(FILES "")
 set(FILE_DECLS "")

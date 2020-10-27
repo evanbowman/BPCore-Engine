@@ -1,6 +1,5 @@
 #include "localization.hpp"
 #include "platform/platform.hpp"
-#include "script/lisp.hpp"
 
 
 // Each language should define a texture mapping, which tells the rendering code
@@ -426,59 +425,6 @@ void locale_set_language(int language_id)
 int locale_get_language()
 {
     return ::language_id;
-}
-
-
-StringBuffer<31> locale_language_name(int language)
-{
-    auto languages = lisp::get_var("languages");
-
-    auto lang = lisp::get_list(languages, language);
-
-    return lang->expect<lisp::Symbol>().name_;
-}
-
-
-LocalizedText locale_string(Platform& pfrm, LocaleString ls)
-{
-    auto result = allocate_dynamic<LocalizedStrBuffer>(pfrm);
-
-    auto languages = lisp::get_var("languages");
-
-    auto lang = lisp::get_list(languages, ::language_id);
-
-    StringBuffer<31> fname = lang->expect<lisp::Symbol>().name_;
-    fname += ".txt";
-
-    if (auto data = pfrm.load_file_contents("strings", fname.c_str())) {
-        const int target_line = static_cast<int>(ls);
-
-        int index = 0;
-        while (index not_eq target_line) {
-            while (*data not_eq '\n') {
-                if (*data == '\0') {
-                    error(pfrm, "blah");
-                    while (true)
-                        ; // FIXME: raise error...
-                }
-                ++data;
-            }
-            ++data;
-
-            ++index;
-        }
-
-        while (*data not_eq '\0' and *data not_eq '\n') {
-            result->push_back(*data);
-            ++data;
-        }
-
-        return result;
-    } else {
-        error(pfrm, "strings file for language does not exist");
-        while (true)
-            ;
-    }
 }
 
 
