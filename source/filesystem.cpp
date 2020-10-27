@@ -1,5 +1,6 @@
 #include "filesystem.hpp"
 #include "string.hpp"
+#include "platform/platform.hpp"
 
 
 static const char* find_files(Platform& pfrm)
@@ -50,9 +51,10 @@ Filesystem::Filesystem() : addr_(nullptr)
 }
 
 
-void Filesystem::init(Platform& pfrm)
+bool Filesystem::init(Platform& pfrm)
 {
     addr_ = find_files(pfrm);
+    return addr_;
 }
 
 
@@ -77,16 +79,18 @@ int tonum(const char* str)
 }
 
 
-const char* Filesystem::get_file(const char* name)
+Filesystem::FileData Filesystem::get_file(const char* name)
 {
     auto current = reinterpret_cast<const FileInfo*>(addr_);
 
     while (true) {
         if (str_cmp(name, current->name_) == 0) {
-            return reinterpret_cast<const char*>(current) + sizeof(FileInfo);
+            return {
+                reinterpret_cast<const char*>(current) + sizeof(FileInfo),
+                static_cast<u32>(tonum(current->size_))
+            };
         } else if (current->name_[0] not_eq '\0') {
             auto skip = tonum(current->size_) + 1; // +1 for null terminator
-            skip += skip % 4; // word padding
 
             const char* next_addr =
                 reinterpret_cast<const char*>(current)
@@ -96,7 +100,7 @@ const char* Filesystem::get_file(const char* name)
                 reinterpret_cast<const FileInfo*>(next_addr);
 
         } else {
-            return nullptr;
+            return {nullptr, 0};
         }
     }
 }

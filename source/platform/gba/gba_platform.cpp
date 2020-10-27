@@ -1932,17 +1932,18 @@ void Platform::Speaker::stop_music()
 
 static void play_music(const char* name, Microseconds offset)
 {
-    const auto track = find_music(name);
-    if (track == nullptr) {
+    auto music_file = platform->fs().get_file(name);
+    if (music_file.data_ == nullptr) {
+        warning(*::platform, "failed to find music file!");
         return;
     }
 
     const Microseconds sample_offset = offset * 0.016f; // NOTE: because 16kHz
 
     modify_audio([&] {
-        snd_ctx.music_track_length = track->length_;
-        snd_ctx.music_track = track->data_;
-        snd_ctx.music_track_pos = (sample_offset / 4) % track->length_;
+        snd_ctx.music_track_length = music_file.size_;
+        snd_ctx.music_track = reinterpret_cast<const s8*>(music_file.data_);
+        snd_ctx.music_track_pos = sample_offset % music_file.size_;
     });
 }
 
@@ -1970,9 +1971,9 @@ void Platform::Speaker::play_music(const char* name, Microseconds offset)
     // chip, as well as the audio interrupts, when playing new sounds? Does
     // disabling the audio interrupts when queueing a new sound effect cause
     // audio artifacts, because the sound chip is not receiving samples?
-    play_sound("footstep1", 0);
-    play_sound("footstep2", 0);
-    play_sound("footstep3", 0);
+    play_sound("msg", 0);
+    play_sound("msg", 0);
+    play_sound("msg", 0);
 }
 
 
@@ -2010,9 +2011,9 @@ static void audio_update_isr()
 {
     alignas(4) AudioSample mixing_buffer[4];
 
-    // NOTE: audio tracks in ROM should therefore have four byte alignment!
-    *((u32*)mixing_buffer) =
-        ((u32*)(snd_ctx.music_track))[snd_ctx.music_track_pos++];
+    for (int i = 0; i < 4; ++i) {
+        mixing_buffer[i] = snd_ctx.music_track[snd_ctx.music_track_pos++];
+    }
 
     if (UNLIKELY(snd_ctx.music_track_pos > snd_ctx.music_track_length)) {
         snd_ctx.music_track_pos = 0;
@@ -2076,22 +2077,6 @@ void Platform::feed_watchdog()
 void Platform::on_watchdog_timeout(WatchdogCallback callback)
 {
     ::watchdog_callback.emplace(callback);
-}
-
-
-#include "files.cpp"
-
-
-const char* Platform::load_file_contents(const char* folder,
-                                         const char* filename) const
-{
-    for (auto& file : files) {
-        if (str_cmp(file.name_, filename) == 0 and
-            str_cmp(file.root_, folder) == 0) {
-            return reinterpret_cast<const char*>(file.data_);
-        }
-    }
-    return nullptr;
 }
 
 

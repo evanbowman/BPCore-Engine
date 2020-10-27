@@ -6,6 +6,9 @@ text("Hello, world!", 3, 3)
 tilesheet(4, "spritesheet")
 
 
+music("music_as_colorful_as_ever.raw", 0)
+
+
 function main_loop(update, draw)
    while true do
       update(getdelta())
@@ -15,6 +18,9 @@ function main_loop(update, draw)
    end
 end
 
+
+i = 0
+dir = 0
 
 function update(dt)
    if btnp(4) then
@@ -28,11 +34,6 @@ function update(dt)
    elseif btnnp(6) then
       fade(0)
    end
-end
-
-i = 0
-dir = 0
-function draw()
 
    if dir == 0 then
       if i < 240 then
@@ -47,7 +48,10 @@ function draw()
          dir = 0
       end
    end
+end
 
+
+function draw()
    spr(15, i, 60)
 end
 

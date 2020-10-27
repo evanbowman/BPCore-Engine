@@ -220,6 +220,20 @@ static const struct {
           lua_pushinteger(L, *((u32*)addr));
           return 1;
       }},
+     {"music",
+      [](lua_State* L) -> int {
+          const auto name = lua_tostring(L, 1);
+          const auto offset = lua_tointeger(L, 2);
+          platform->speaker().play_music(name, offset);
+          return 0;
+      }},
+     {"sound",
+      [](lua_State* L) -> int {
+          const auto name = lua_tostring(L, 1);
+          const auto priority = lua_tointeger(L, 2);
+          platform->speaker().play_sound(name, priority);
+          return 0;
+      }},
      {"fade",
       [](lua_State* L) -> int {
           const auto amount = lua_tonumber(L, 1);
@@ -255,9 +269,8 @@ static const struct {
 };
 
 
-static void show_lua_error(lua_State* lua,
-                           const char* heading,
-                           const char* error)
+static void fatal_error(const char* heading,
+                        const char* error)
 {
     platform->screen().clear();
 
@@ -284,7 +297,7 @@ static int lua_panic(lua_State* L)
         msg = "error object is not a string";
     }
 
-    show_lua_error(L, "Lua Panicked!", msg);
+    fatal_error("Lua Panicked!", msg);
 
     return 0;
 }
@@ -301,7 +314,10 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
         pf.fill_overlay(112);
         Text loading_text(pf, "loading...", {1, 18});
         platform->screen().display();
-        fs_.init(pf);
+        if (not pf.fs().init(pf)) {
+            fatal_error("Fatal Error:",
+                        "BPCore Engine failed to load resource bundle!");
+        }
         // platform->enable_glyph_mode(false);
     }
     pf.fill_overlay(0);
@@ -317,14 +333,14 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
         lua_setglobal(lua_, builtin.name_);
     }
 
-    if (auto script = fs_.get_file("main.lua")) {
+    if (auto script = pf.fs().get_file("main.lua").data_) {
         if (luaL_loadstring(lua_, script)) {
-            show_lua_error(lua_, "Fatal Error: ", lua_tostring(lua_, -1));
+            fatal_error("Fatal Error: ", lua_tostring(lua_, -1));
         }
     }
 
     if (lua_pcall(lua_, 0, 0, 0)) {
-        show_lua_error(lua_, "Fatal Error: ", lua_tostring(lua_, -1));
+        fatal_error("Fatal Error: ", lua_tostring(lua_, -1));
     }
 }
 

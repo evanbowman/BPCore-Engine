@@ -15,6 +15,7 @@
 #include "unicode.hpp"
 #include <array>
 #include <optional>
+#include "filesystem.hpp"
 
 
 using TileDesc = u16;
@@ -54,6 +55,11 @@ public:
     // Timestamp recorded when the process launched, returns an empty optional
     // if the platform does not provide a functional clock.
     std::optional<DateTime> startup_time() const;
+
+    inline Filesystem& fs()
+    {
+        return fs_;
+    }
 
     inline Screen& screen()
     {
@@ -187,11 +193,6 @@ public:
 
     bool write_save_data(const void* data, u32 length);
     bool read_save_data(void* buffer, u32 data_length);
-
-
-    const char* load_file_contents(const char* folder,
-                                   const char* filename) const;
-
 
 #ifdef __GBA__
 #define SCRATCH_BUFFER_SIZE 1200
@@ -648,6 +649,7 @@ private:
 
     friend int main(int argc, char** argv);
 
+    Filesystem fs_;
     SystemClock system_clock_;
     NetworkPeer network_peer_;
     DeltaClock delta_clock_;

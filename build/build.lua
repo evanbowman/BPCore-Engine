@@ -51,7 +51,6 @@ for _, fname in pairs(application["files"]) do
    -- char size[16]
    -- contents[...]
    -- null byte
-   -- padding (for word alignment of next file)
 
    bundle:write(fname)
 
@@ -71,12 +70,6 @@ for _, fname in pairs(application["files"]) do
 
    -- BPCore requires data to be null-terminated
    bundle:write("\0")
-
-   -- BPCore requries subsequent data to be word-aligned.
-   for i = 0, datalen % 4 do
-      bundle:write("\0")
-   end
-
 end
 
 

@@ -17,5 +17,4 @@ public:
 
 private:
     lua_State* lua_;
-    Filesystem fs_;
 };

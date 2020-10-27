@@ -1,15 +1,23 @@
 #pragma once
 
-#include "platform/platform.hpp"
+#include "number/int.h"
+
+
+class Platform;
 
 
 class Filesystem {
 public:
     Filesystem();
 
-    void init(Platform& pfrm);
+    bool init(Platform&);
 
-    const char* get_file(const char* filename);
+    struct FileData {
+        const char* data_;
+        u32 size_;
+    };
+
+    FileData get_file(const char* filename);
 
 private:
     const char* addr_;

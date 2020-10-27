@@ -165,6 +165,10 @@ if(GAMEBOY_ADVANCE)
     ${DATA_DIR}/title_2_flattened.s
     ${DATA_DIR}/sound_msg.s
     ${DATA_DIR}/overlay_journal.s
+    ${DATA_DIR}/sound_footstep1.s
+    ${DATA_DIR}/sound_footstep2.s
+    ${DATA_DIR}/sound_footstep3.s
+    ${DATA_DIR}/sound_footstep4.s
     ${DATA_DIR}/overlay_dialog.s
     ${DATA_DIR}/spritesheet_boss0.s
     ${DATA_DIR}/spritesheet_boss1.s
