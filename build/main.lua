@@ -9,6 +9,15 @@ tile(0, 1, 6, 9)
 text("Hello, world!", 3, 3)
 
 
+texture(2, "tile0.bmp")
+
+for i = 0, 63 do
+   for j = 0, 64 do
+      tile(2, 1, i, j)
+   end
+end
+
+
 texture(4, "spritesheet")
 
 

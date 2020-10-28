@@ -1232,38 +1232,71 @@ void Platform::load_sprite_texture(const char* name)
 }
 
 
+static u16 tile0_source_pal[16];
+static TextureData tile0_file_data;
+
+
+static void push_tile0_texture(const char* name, const TextureData& info)
+{
+    current_tilesheet0 = &info;
+
+    init_palette(current_tilesheet0, tilesheet_0_palette, false);
+
+
+    // We don't want to load the whole palette into memory, we might
+    // overwrite palettes used by someone else, e.g. the overlay...
+    //
+    // Also, like the sprite texture, we need to apply the currently
+    // active screen fade while modifying the color palette.
+    const auto c = nightmode_adjust(real_color(last_color));
+    for (int i = 0; i < 16; ++i) {
+        auto from = Color::from_bgr_hex_555(tilesheet_0_palette[i]);
+        MEM_BG_PALETTE[i] = blend(from, c, last_fade_amt);
+    }
+
+    if (validate_tilemap_texture_size(*platform, info.tile_data_length_)) {
+        memcpy16((void*)&MEM_SCREENBLOCKS[sbb_t0_texture][0],
+                 info.tile_data_,
+                 info.tile_data_length_ / 2);
+    } else {
+        StringBuffer<45> buf = "unable to load: ";
+        buf += name;
+
+        error(*platform, buf.c_str());
+    }
+}
+
+
 void Platform::load_tile0_texture(const char* name)
 {
+    StringBuffer<48> palette_file(name);
+    palette_file += ".pal";
+
+    const auto img = fs().get_file(name);
+    const auto palette = fs().get_file(palette_file.c_str());
+
+    if (img.data_ and palette.data_) {
+
+        memcpy(tile0_source_pal,
+               palette.data_,
+               sizeof tile0_source_pal);
+
+        TextureData& info = tile0_file_data;
+        info.name_ = name;
+        info.tile_data_ = (const unsigned int*)img.data_;
+        info.palette_data_ = tile0_source_pal;
+        info.tile_data_length_ = img.size_;
+        info.palette_data_length_ = 16;
+
+        push_tile0_texture(name, info);
+        return;
+    }
+
     for (auto& info : tile_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
 
-            current_tilesheet0 = &info;
-
-            init_palette(current_tilesheet0, tilesheet_0_palette, false);
-
-
-            // We don't want to load the whole palette into memory, we might
-            // overwrite palettes used by someone else, e.g. the overlay...
-            //
-            // Also, like the sprite texture, we need to apply the currently
-            // active screen fade while modifying the color palette.
-            const auto c = nightmode_adjust(real_color(last_color));
-            for (int i = 0; i < 16; ++i) {
-                auto from = Color::from_bgr_hex_555(tilesheet_0_palette[i]);
-                MEM_BG_PALETTE[i] = blend(from, c, last_fade_amt);
-            }
-
-            if (validate_tilemap_texture_size(*this, info.tile_data_length_)) {
-                memcpy16((void*)&MEM_SCREENBLOCKS[sbb_t0_texture][0],
-                         info.tile_data_,
-                         info.tile_data_length_ / 2);
-            } else {
-                StringBuffer<45> buf = "unable to load: ";
-                buf += name;
-
-                error(*this, buf.c_str());
-            }
+            push_tile0_texture(name, info);
         }
     }
 }
