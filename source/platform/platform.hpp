@@ -155,6 +155,9 @@ public:
     TileDesc get_tile(Layer layer, u16 x, u16 y);
 
 
+    void scroll(Layer layer, u16 xscroll, u16 yscroll);
+
+
     void fill_overlay(u16 TileDesc);
 
     void set_overlay_origin(Float x, Float y);

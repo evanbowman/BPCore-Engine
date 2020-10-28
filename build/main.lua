@@ -12,6 +12,7 @@ text("Hello, world!", 3, 3)
 
 txtr(2, "tile0.bmp")
 
+
 for i = 0, 63 do
    for j = 0, 63 do
       tile(2, 1, i, j)

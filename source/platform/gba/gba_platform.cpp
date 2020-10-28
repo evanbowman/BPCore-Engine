@@ -25,9 +25,6 @@ void english__to_string(int num, char* buffer, int base);
 #include "gba.h"
 
 
-static int overlay_y = 0;
-
-
 struct BiosVersion {
     enum {
         NDS = static_cast<long unsigned int>(-1162995584),
@@ -403,14 +400,7 @@ static volatile u16* reg_blendalpha = (volatile u16*)0x04000052;
 Platform::Screen::Screen() : userdata_(nullptr)
 {
     REG_DISPCNT = MODE_0 | OBJ_ENABLE | OBJ_MAP_1D | BG0_ENABLE | BG1_ENABLE |
-                  BG2_ENABLE | BG3_ENABLE | WIN0_ENABLE;
-
-    REG_WININ = WIN_ALL;
-
-    // Always display the starfield and the overlay in the outer window. We just
-    // want to mask off areas of the game map that have wrapped to the other
-    // side of the screen.
-    REG_WINOUT = WIN_OBJ | WIN_BG1 | WIN_BG2;
+                  BG2_ENABLE | BG3_ENABLE;
 
     *reg_blendcnt = BLD_BUILD(BLD_OBJ, BLD_BG0 | BLD_BG1 | BLD_BG3, 0);
 
@@ -815,6 +805,32 @@ static ScreenBlock overlay_back_buffer alignas(u32);
 static bool overlay_back_buffer_changed = false;
 
 
+void Platform::scroll(Layer layer, u16 xscroll, u16 yscroll)
+{
+    switch (layer) {
+    case Layer::overlay:
+        *bg2_x_scroll = xscroll;
+        *bg2_y_scroll = yscroll;
+        break;
+
+    case Layer::map_1:
+        *bg3_x_scroll = xscroll;
+        *bg3_y_scroll = yscroll;
+        break;
+
+    case Layer::map_0:
+        *bg0_x_scroll = xscroll;
+        *bg0_y_scroll = yscroll;
+        break;
+
+    case Layer::background:
+        *bg1_x_scroll = xscroll;
+        *bg1_y_scroll = yscroll;
+        break;
+    }
+}
+
+
 void Platform::Screen::display()
 {
     // platform->stopwatch().start();
@@ -830,19 +846,9 @@ void Platform::Screen::display()
     if (overlay_back_buffer_changed) {
         overlay_back_buffer_changed = false;
 
-        // If the overlay has not scrolled, then we do not need to bother with
-        // the lower twelve rows of the overlay tile data, because the screen is
-        // twenty tiles tall. This hack could be problematic if someone scrolls
-        // the screen a lot without editing the overlay.
-        if (overlay_y == 0) {
-            memcpy32(MEM_SCREENBLOCKS[sbb_overlay_tiles],
-                     overlay_back_buffer,
-                     (sizeof(u16) * (21 * 32)) / 4);
-        } else {
-            memcpy32(MEM_SCREENBLOCKS[sbb_overlay_tiles],
-                     overlay_back_buffer,
-                     (sizeof overlay_back_buffer) / 4);
-        }
+        memcpy32(MEM_SCREENBLOCKS[sbb_overlay_tiles],
+                 overlay_back_buffer,
+                 (sizeof overlay_back_buffer) / 4);
     }
 
     for (u32 i = oam_write_index; i < last_oam_write_index; ++i) {
@@ -883,41 +889,41 @@ void Platform::Screen::display()
         info.locked_ = false;
     }
 
-    auto view_offset = view_.get_center().cast<s32>();
-    *bg0_x_scroll = view_offset.x;
-    *bg0_y_scroll = view_offset.y;
+    // auto view_offset = view_.get_center().cast<s32>();
+    // *bg0_x_scroll = view_offset.x;
+    // *bg0_y_scroll = view_offset.y;
 
-    *bg3_x_scroll = view_offset.x;
-    *bg3_y_scroll = view_offset.y;
+    // *bg3_x_scroll = view_offset.x;
+    // *bg3_y_scroll = view_offset.y;
 
-    // Depending on the amount of the background scroll, we want to mask off
-    // certain parts of bg0 and bg3. The background tiles wrap when they scroll
-    // a certain distance, and wrapping looks strange (although it might be
-    // useful if you were making certain kinds of games, like some kind of
-    // Civilization clone, but for BlindJump, it doesn't make sense to display
-    // the wrapped area).
-    const s32 scroll_limit_x_max = 512 - size().x;
-    const s32 scroll_limit_y_max = 480 - size().y;
-    if (view_offset.x > scroll_limit_x_max) {
-        REG_WIN0H =
-            (0 << 8) | (size().x - (view_offset.x - scroll_limit_x_max));
-    } else if (view_offset.x < 0) {
-        REG_WIN0H = ((view_offset.x * -1) << 8) | (0);
-    } else {
-        REG_WIN0H = (0 << 8) | (size().x);
-    }
+    // // Depending on the amount of the background scroll, we want to mask off
+    // // certain parts of bg0 and bg3. The background tiles wrap when they scroll
+    // // a certain distance, and wrapping looks strange (although it might be
+    // // useful if you were making certain kinds of games, like some kind of
+    // // Civilization clone, but for BlindJump, it doesn't make sense to display
+    // // the wrapped area).
+    // const s32 scroll_limit_x_max = 512 - size().x;
+    // const s32 scroll_limit_y_max = 480 - size().y;
+    // if (view_offset.x > scroll_limit_x_max) {
+    //     REG_WIN0H =
+    //         (0 << 8) | (size().x - (view_offset.x - scroll_limit_x_max));
+    // } else if (view_offset.x < 0) {
+    //     REG_WIN0H = ((view_offset.x * -1) << 8) | (0);
+    // } else {
+    //     REG_WIN0H = (0 << 8) | (size().x);
+    // }
 
-    if (view_offset.y > scroll_limit_y_max) {
-        REG_WIN0V =
-            (0 << 8) | (size().y - (view_offset.y - scroll_limit_y_max));
-    } else if (view_offset.y < 0) {
-        REG_WIN0V = ((view_offset.y * -1) << 8) | (0);
-    } else {
-        REG_WIN0V = (0 << 8) | (size().y);
-    }
+    // if (view_offset.y > scroll_limit_y_max) {
+    //     REG_WIN0V =
+    //         (0 << 8) | (size().y - (view_offset.y - scroll_limit_y_max));
+    // } else if (view_offset.y < 0) {
+    //     REG_WIN0V = ((view_offset.y * -1) << 8) | (0);
+    // } else {
+    //     REG_WIN0V = (0 << 8) | (size().y);
+    // }
 
-    *bg1_x_scroll = view_offset.x * 0.3f;
-    *bg1_y_scroll = view_offset.y * 0.3f;
+    // *bg1_x_scroll = view_offset.x * 0.3f;
+    // *bg1_y_scroll = view_offset.y * 0.3f;
 }
 
 
@@ -1092,9 +1098,6 @@ void Platform::fatal()
 
 void Platform::set_overlay_origin(Float x, Float y)
 {
-    *bg2_x_scroll = static_cast<s16>(x);
-    *bg2_y_scroll = static_cast<s16>(y);
-    overlay_y = y;
 }
 
 

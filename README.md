@@ -80,6 +80,15 @@ Returns word value at address.
 * `fade(amount, [custom_color_hex], [include_sprites], [include_overlay])`
 Fade the screen. Amount should be in the range `0.0` to `1.0`.
 
+* `scroll(layer, x_amount, y_amount)`
+Scroll tile layer by `x_amount`, `y_amount`. Note that on the Gameboy Advance, scroll offsets are inverted.
+
+* `music(source_file, offset)`
+Play mono 16kHz signed 8bit PCM audio from the given source file string. All music loops, and you may specify an offset into the music file with the `offset` parameter.
+
+* `sound(source_file, priority)`
+Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike the music, sounds do not loop. The engine can only render four audio channels at a time--3 for sound effects, and one for the music. If you already have three sounds playing, the sound effect with the lowest priority will be evicted if the sound that you are requesting has a higher priority.
+
 # Example
 
 ``` Lua

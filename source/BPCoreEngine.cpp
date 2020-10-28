@@ -177,6 +177,16 @@ static const struct {
 
           return 0;
       }},
+     {"scroll",
+      [](lua_State* L) -> int {
+          const int l = lua_tointeger(L, 1);
+          const int x = lua_tointeger(L, 2);
+          const int y = lua_tointeger(L, 3);
+
+          platform->scroll(static_cast<Layer>(l), x, y);
+
+          return 0;
+      }},
      {"tile",
       [](lua_State* L) -> int {
           const int l = lua_tointeger(L, 1);
