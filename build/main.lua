@@ -23,7 +23,7 @@ end
 fade(0)
 
 
-txtr(4, "spritesheet")
+txtr(4, "spritesheet.bmp")
 
 
 music("music_as_colorful_as_ever.raw", 0)
@@ -67,7 +67,7 @@ end
 
 
 function draw()
-   spr(15, x, 60)
+   spr(0, x, 60)
 end
 
 

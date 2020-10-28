@@ -17,7 +17,7 @@ public:
         count
     };
 
-    enum Size : u8 { w32_h32, w16_h32 };
+    enum Size : u8 { w16_h16 };
 
     enum Flags1 : u8 {};
     enum Flags2 : u8 {};

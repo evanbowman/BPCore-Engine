@@ -44,11 +44,102 @@ application = manifest();
 app_name = application["name"] .. ".gba"
 
 
+local format_color = function(r, g, b)
+   local red = bit32.rshift(r, 3)
+   local green = bit32.rshift(g, 3)
+   local blue = bit32.rshift(b, 3)
+
+   return red + bit32.lshift(green, 5) + bit32.lshift(blue, 10)
+end
+
+
+function write_tile(start_x, start_y, img, map_color)
+   -- GBA hardware expects images to be meta-tiled, so that each 8x8 tile is
+   -- effectively flattened, such that the first row of the 8x8 tile is
+   -- followed immediately in memory by the next, and the next, for each row
+   -- of the 8x8 pixel tile.
+
+   local result = ""
+
+   -- We're going to be outputting 4 bits per pixel, where the bits serve as an
+   -- index into a palette table (i.e. we're dealing with 4-bit indexed color).
+   local half = nil
+
+   for y = start_y, start_y + 8 - 1 do
+      for x = start_x, start_x + 8 - 1 do
+         local r, g, b = img:get_pixel(x, y)
+
+         local c15 = format_color(r, g, b)
+
+         local index = map_color(c15)
+         if half then
+            half = bit32.bor(half, bit32.lshift(index, 4))
+            result = result .. string.pack("<i1", half)
+            half = nil
+         else
+            half = index
+         end
+      end
+   end
+
+   return result
+end
+
+
+function make_color_mapper(palette)
+
+   local color_index_count = 0
+
+   return function(c15_hex)
+      local exists = palette[c15_hex]
+      if exists then
+         return exists
+      else
+         palette[c15_hex] = color_index_count
+         result = color_index_count
+         color_index_count = color_index_count + 1
+         return result
+      end
+   end
+end
+
+
+function write_palette(palette, source)
+   local palette_out = {}
+   local result = ""
+
+   local id_max = 0
+
+   for k, v in pairs(palette) do
+      if v > id_max then
+         id_max = v
+      end
+      palette_out[v] = k
+   end
+
+   if id_max >= 16 then
+      error("image " .. source .. " has too many colors! (Expected: 16)")
+   end
+
+   for i = 0, id_max do
+      result = result .. string.pack("<i2", palette_out[i])
+   end
+
+   if id_max ~= 15 then
+      for i = id_max + 1, 15 do
+         result = result .. string.pack("<i2", 0)
+      end
+   end
+
+   return result
+end
+
+
 -- The engine does not know how to parse .bmp files! Not that we cannot figure
 -- out how to parse bmp files on a gameboy, that's easy. But needing to process
 -- data before loading it into VRAM would significantly slow down texture
 -- loading.
-function convert_img(path)
+function convert_tileset(path)
    local img = bitmap.from_file(path)
    local w = img.width
    local h = img.height
@@ -58,89 +149,54 @@ function convert_img(path)
       error("tileset must be eight pixels high")
    end
 
-   local color_index_count = 0
    local palette = {}
 
-   local map_color = function(c15)
-      local exists = palette[c15]
-      if exists then
-         return exists
-      else
-         palette[c15] = color_index_count
-         result = color_index_count
-         color_index_count = color_index_count + 1
-         return result
-      end
-   end
-
-   -- We're going to be outputting 4 bits per pixel, where the bits serve as an index
-   local half = nil
-
-   -- GBA hardware expects images to be meta-tiled, so that each 8x8 tile is
-   -- effectively flattened, such that the first row of the 8x8 tile is followed
-   -- immediately in memory by the next, and the next, for each row of the 8x8
-   -- pixel tile.
-
-   local img_data = ""
-
-   local format_color = function(r, g, b)
-      local red = bit32.rshift(r, 3)
-      local green = bit32.rshift(g, 3)
-      local blue = bit32.rshift(b, 3)
-
-      return red + bit32.lshift(green, 5) + bit32.lshift(blue, 10)
-   end
+   map_color = make_color_mapper(palette)
 
    -- Transparent color constant should have index 0
    map_color(format_color(255, 0, 255))
 
-   outfile = io.open("debug", "wb")
+   local img_data = ""
 
    for block_x = 0, w - 1, 8 do
-      for y = 0, h - 1 do
-         for x = block_x, block_x + 8 - 1 do
-            local r, g, b = img:get_pixel(x, y)
+      img_data = img_data .. write_tile(block_x, 0, img, map_color)
+   end
 
-            local c15 = format_color(r, g, b)
+   return img_data, write_palette(palette, path)
+end
 
-            local index = map_color(c15)
-            if half then
-               half = bit32.bor(half, bit32.lshift(index, 4))
-               img_data = img_data .. string.pack("<i1", half)
-               half = nil
-            else
-               half = index
-            end
+
+-- The engine uses 8x8 pixel tiles, and 16x16 pixel sprites, so sprite data
+-- needs to be processed differently (meta-tiled 2x2)
+function convert_spritesheet(path)
+   local img = bitmap.from_file(path)
+   local w = img.width
+   local h = img.height
+
+   if h ~= 16 then
+      -- TODO: support rectangular sizes
+      error("spritesheet must be sixteen pixels high")
+   end
+
+   local palette = {}
+
+   map_color = make_color_mapper(palette)
+
+   -- Transparent color constant should have index 0
+   map_color(format_color(255, 0, 255))
+
+   local img_data = ""
+
+   for meta_x = 0, w - 1, 16 do
+      for block_y = 0, h - 1, 8 do
+         for block_x = meta_x, meta_x + 16 - 1, 8 do
+            local tile_data = write_tile(block_x, block_y, img, map_color)
+            img_data = img_data .. tile_data
          end
       end
    end
 
-   outfile:write(img_data)
-   outfile:close()
-
-   palette_out = {}
-
-   for k, v in pairs(palette) do
-      palette_out[v] = k
-   end
-
-   palette_data = ""
-
-   for i = 0, color_index_count - 1 do
-      palette_data = palette_data .. string.pack("<i2", palette_out[i])
-   end
-
-   if color_index_count < 16 then
-      for i = 0, 16 - color_index_count do
-         palette_data = palette_data .. string.pack("<i2", 0)
-      end
-   end
-
-   if color_index_count > 16 then
-      error("Image must contain only 16 colors!")
-   end
-
-   return img_data, palette_data
+   return img_data, write_palette(palette, path)
 end
 
 
@@ -192,19 +248,35 @@ function bundle_resource(fname, data)
 end
 
 
-for _, fname in pairs(application["files"]) do
-
-   local ext = extension(fname)
-
-   if ext == ".bmp" then
-      local data, palette = convert_img(fname)
-      bundle_resource(fname, data)
-      bundle_resource(fname .. ".pal", palette)
-   else
-      local data = contents(fname)
-      bundle_resource(fname, data)
+for _, fname in pairs(application["tilesets"]) do
+   if extension(fname) ~= ".bmp" then
+      error("tilesets should be in a .bmp format!")
    end
 
+   local data, palette = convert_tileset(fname)
+   bundle_resource(fname, data)
+   bundle_resource(fname .. ".pal", palette)
+end
+
+
+for _, fname in pairs(application["spritesheets"]) do
+   if extension(fname) ~= ".bmp" then
+      error("spritesheets should be in a .bmp format!")
+   end
+
+   local data, palette = convert_spritesheet(fname)
+   bundle_resource(fname, data)
+   bundle_resource(fname .. ".pal", palette)
+end
+
+
+for _, fname in pairs(application["scripts"]) do
+   bundle_resource(fname, contents(fname))
+end
+
+
+for _, fname in pairs(application["audio"]) do
+   bundle_resource(fname, contents(fname))
 end
 
 

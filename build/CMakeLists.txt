@@ -138,49 +138,10 @@ if(GAMEBOY_ADVANCE)
 
     # Data files below. Because the gameboy advance does not have a filesystem,
     # all of the sounds and images need to be compiled into the ROM.
-    ${DATA_DIR}/scottbuckley_computations.s
-    ${DATA_DIR}/clair_de_lune.s
     ${DATA_DIR}/overlay.s
-    ${DATA_DIR}/repl.s
-    ${DATA_DIR}/overlay_cutscene.s
     ${DATA_DIR}/charset.s
-    ${DATA_DIR}/tilesheet_intro_cutscene_flattened.s
-    ${DATA_DIR}/tilesheet.s
-    ${DATA_DIR}/tilesheet2.s
-    ${DATA_DIR}/tilesheet3.s
-    ${DATA_DIR}/tilesheet4.s
-    ${DATA_DIR}/tilesheet_top.s
-    ${DATA_DIR}/tilesheet2_top.s
-    ${DATA_DIR}/tilesheet3_top.s
-    ${DATA_DIR}/tilesheet4_top.s
-    ${DATA_DIR}/spritesheet_intro_cutscene.s
-    ${DATA_DIR}/spritesheet_intro_clouds.s
-    ${DATA_DIR}/spritesheet.s
-    ${DATA_DIR}/spritesheet2.s
-    ${DATA_DIR}/spritesheet3.s
-    ${DATA_DIR}/spritesheet4.s
-    ${DATA_DIR}/spritesheet_launch_anim.s
-    ${DATA_DIR}/launch_flattened.s
-    ${DATA_DIR}/title_1_flattened.s
-    ${DATA_DIR}/title_2_flattened.s
-    ${DATA_DIR}/sound_msg.s
-    ${DATA_DIR}/overlay_journal.s
-    ${DATA_DIR}/sound_footstep1.s
-    ${DATA_DIR}/sound_footstep2.s
-    ${DATA_DIR}/sound_footstep3.s
-    ${DATA_DIR}/sound_footstep4.s
-    ${DATA_DIR}/overlay_dialog.s
-    ${DATA_DIR}/spritesheet_boss0.s
-    ${DATA_DIR}/spritesheet_boss1.s
-    ${DATA_DIR}/spritesheet_boss2.s
-    ${DATA_DIR}/spritesheet_boss2_done.s
-    ${DATA_DIR}/spritesheet_boss2_mutate.s
-    ${DATA_DIR}/spritesheet_boss2_final.s
-    ${DATA_DIR}/old_poster_flattened.s
-    ${DATA_DIR}/postal_advert_flattened.s
-    ${DATA_DIR}/blaster_info_flattened.s
-    ${DATA_DIR}/seed_packet_flattened.s
-    ${DATA_DIR}/overlay_network_flattened.s)
+    ${DATA_DIR}/sound_msg.s)
+
 else()
   set(SOURCES
     ${SOURCES}
@@ -385,42 +346,8 @@ if(GAMEBOY_ADVANCE)
   endif()
 
   if(GBA_AUTOBUILD_IMG)
-    add_spritesheet(spritesheet_intro_clouds 2 4 NO)
-    add_spritesheet(spritesheet_intro_cutscene 2 4 NO)
-    add_spritesheet(spritesheet 2 4 NO)
-    add_spritesheet(spritesheet2 2 4 NO)
-    add_spritesheet(spritesheet3 2 4 NO)
-    add_spritesheet(spritesheet4 2 4 NO)
-    add_spritesheet(spritesheet_boss0 2 4 NO)
-    add_spritesheet(spritesheet_boss1 2 4 NO)
-    add_spritesheet(spritesheet_boss2 2 4 NO)
-    add_spritesheet(spritesheet_boss2_done 2 4 NO)
-    add_spritesheet(spritesheet_boss2_mutate 2 4 NO)
-    add_spritesheet(spritesheet_boss2_final 2 4 NO)
-    add_spritesheet(spritesheet_launch_anim 2 4 NO)
-    add_tilesheet(title_1 0 0 YES)
-    add_tilesheet(title_2 0 0 YES)
-    add_tilesheet(launch 0 0 YES)
-    add_tilesheet(tilesheet_intro_cutscene 0 0 YES)
-    add_tilesheet(tilesheet 4 3 NO)
-    add_tilesheet(tilesheet2 4 3 NO)
-    add_tilesheet(tilesheet3 4 3 NO)
-    add_tilesheet(tilesheet4 4 3 NO)
-    add_tilesheet(tilesheet_top 4 3 NO)
-    add_tilesheet(tilesheet2_top 4 3 NO)
-    add_tilesheet(tilesheet3_top 4 3 NO)
-    add_tilesheet(tilesheet4_top 4 3 NO)
     add_overlay(overlay 0 0 NO)
-    add_overlay(repl 0 0 NO)
-    add_overlay(overlay_cutscene 0 0 NO)
     add_overlay(charset 0 0 NO)
-    add_overlay(overlay_journal 0 0 NO)
-    add_overlay(overlay_dialog 0 0 NO)
-    add_overlay(old_poster 0 0 YES)
-    add_overlay(postal_advert 0 0 YES)
-    add_overlay(blaster_info 0 0 YES)
-    add_overlay(seed_packet 0 0 YES)
-    add_overlay(overlay_network 0 0 YES)
 
     configure_file(images.cpp.in ${SOURCE_DIR}/platform/gba/images.cpp)
   endif()

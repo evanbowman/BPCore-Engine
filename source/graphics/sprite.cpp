@@ -3,7 +3,7 @@
 
 Sprite::Sprite() :
     alpha_(Alpha::opaque),
-    size_(Size::w32_h32),
+    size_(Size::w16_h16),
     flip_x_(false),
     flip_y_(false)
 {

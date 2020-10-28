@@ -626,11 +626,11 @@ void Platform::Screen::draw(const Sprite& spr)
         const auto view_center = view_.get_center().cast<s32>();
         auto oa = object_attribute_back_buffer + oam_write_index;
         if (spr.get_alpha() not_eq Sprite::Alpha::translucent) {
-            oa->attribute_0 = ATTR0_COLOR_16 | ATTR0_TALL;
+            oa->attribute_0 = ATTR0_COLOR_16 | ATTR0_SQUARE;
         } else {
-            oa->attribute_0 = ATTR0_COLOR_16 | ATTR0_TALL | ATTR0_BLEND;
+            oa->attribute_0 = ATTR0_COLOR_16 | ATTR0_SQUARE | ATTR0_BLEND;
         }
-        oa->attribute_1 = ATTR1_SIZE_32; // clear attr1
+        oa->attribute_1 = ATTR1_SIZE_16; // clear attr1
 
         auto abs_position = position - view_center;
 
@@ -684,33 +684,7 @@ void Platform::Screen::draw(const Sprite& spr)
     };
 
     switch (spr.get_size()) {
-    case Sprite::Size::w32_h32:
-        // In order to fit the spritesheet into VRAM, the game draws
-        // sprites in 32x16 pixel chunks, although several sprites are
-        // really 32x32. 32x16 is easy to meta-tile for 1D texture
-        // mapping, and a 32x32 sprite can be represented as two 32x16
-        // sprites. If all sprites were 32x32, the spritesheet would
-        // not fit into the gameboy advance's video memory. 16x16
-        // would be even more compact, but would be inconvenient to
-        // work with from a art/drawing perspective. Maybe I'll write
-        // a script to reorganize the spritesheet into a Nx16 strip,
-        // and metatile as 2x2 gba tiles... someday.
-
-        // When a sprite is flipped, each of the individual 32x16 strips are
-        // flipped, and then we need to swap the drawing X-offsets, so that the
-        // second strip will be drawn first.
-        if (not spr.get_flip().x) {
-            draw_sprite(0, 0, 16);
-            draw_sprite(8, 16, 16);
-
-        } else {
-            draw_sprite(0, 16, 16);
-            draw_sprite(8, 0, 16);
-        }
-
-        break;
-
-    case Sprite::Size::w16_h32:
+    case Sprite::Size::w16_h16:
         draw_sprite(0, 0, 8);
         break;
     }
@@ -1206,30 +1180,62 @@ void Platform::Screen::pixelate(u8 amount,
 }
 
 
+static u16 spritesheet_source_pal[16];
+static TextureData spritesheet_file_data;
+
+
+static void push_spritesheet_texture(const TextureData& info)
+{
+    current_spritesheet = &info;
+
+    init_palette(current_spritesheet, sprite_palette, false);
+
+
+    // NOTE: There are four tile blocks, so index four points to the
+    // end of the tile memory.
+    memcpy16((void*)&MEM_TILE[4][1],
+             info.tile_data_,
+             info.tile_data_length_ / 2);
+
+    // We need to do this, otherwise whatever screen fade is currently
+    // active will be overwritten by the copy.
+    const auto c = nightmode_adjust(real_color(last_color));
+    for (int i = 0; i < 16; ++i) {
+        auto from = Color::from_bgr_hex_555(sprite_palette[i]);
+        MEM_PALETTE[i] = blend(from, c, last_fade_amt);
+    }
+}
+
+
 void Platform::load_sprite_texture(const char* name)
 {
+    StringBuffer<48> palette_file(name);
+    palette_file += ".pal";
+
+    const auto img = fs().get_file(name);
+    const auto palette = fs().get_file(palette_file.c_str());
+
+    if (img.data_ and palette.data_) {
+        memcpy(spritesheet_source_pal,
+               palette.data_,
+               sizeof spritesheet_source_pal);
+
+        TextureData& info = spritesheet_file_data;
+        info.name_ = name;
+        info.tile_data_ = (const unsigned int*)img.data_;
+        info.palette_data_ = spritesheet_source_pal;
+        info.tile_data_length_ = img.size_;
+        info.palette_data_length_ = 16;
+
+        push_spritesheet_texture(info);
+        return;
+    }
+
     for (auto& info : sprite_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
 
-            current_spritesheet = &info;
-
-            init_palette(current_spritesheet, sprite_palette, false);
-
-
-            // NOTE: There are four tile blocks, so index four points to the
-            // end of the tile memory.
-            memcpy16((void*)&MEM_TILE[4][1],
-                     info.tile_data_,
-                     info.tile_data_length_ / 2);
-
-            // We need to do this, otherwise whatever screen fade is currently
-            // active will be overwritten by the copy.
-            const auto c = nightmode_adjust(real_color(last_color));
-            for (int i = 0; i < 16; ++i) {
-                auto from = Color::from_bgr_hex_555(sprite_palette[i]);
-                MEM_PALETTE[i] = blend(from, c, last_fade_amt);
-            }
+            push_spritesheet_texture(info);
         }
     }
 }
