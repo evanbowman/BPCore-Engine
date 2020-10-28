@@ -85,7 +85,7 @@ Fade the screen. Amount should be in the range `0.0` to `1.0`.
 ``` Lua
 
 -- play some music from a 16 kHz signed 8-bit pcm wave file
-music("music_as_colorful_as_ever.raw", 0)
+music("my_music.raw", 0)
 
 -- Fade the screen while we load a texture and fill the tile layer.
 fade(1)

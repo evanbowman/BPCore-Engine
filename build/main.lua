@@ -38,8 +38,8 @@ function main_loop(update, draw)
 end
 
 
-i = 0
-dir = 0
+local x = 0
+local dir = 0
 
 function update(dt)
 
@@ -50,14 +50,14 @@ function update(dt)
    end
 
    if dir == 0 then
-      if i < 240 then
-         i = i + 1
+      if x < 240 then
+         x = x + 1
       else
          dir = 1
       end
    else
-      if i > 0 then
-         i = i - 1
+      if x > 0 then
+         x = x - 1
       else
          dir = 0
       end
@@ -66,7 +66,7 @@ end
 
 
 function draw()
-   spr(15, i, 60)
+   spr(15, x, 60)
 end
 
 
