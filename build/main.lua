@@ -1,4 +1,5 @@
 
+fade(1)
 
 texture(0, "overlay.bmp")
 
@@ -7,17 +8,18 @@ tile(0, 110, 8, 9)
 tile(0, 91, 7, 9)
 tile(0, 1, 6, 9)
 
-
 text("Hello, world!", 3, 3)
-
 
 texture(2, "tile0.bmp")
 
 for i = 0, 63 do
-   for j = 0, 64 do
+   for j = 0, 63 do
       tile(2, 1, i, j)
    end
 end
+
+
+fade(0)
 
 
 texture(4, "spritesheet")

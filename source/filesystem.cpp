@@ -94,6 +94,7 @@ Filesystem::FileData Filesystem::get_file(const char* name)
             };
         } else if (current->name_[0] not_eq '\0') {
             auto skip = tonum(current->size_) + 1; // +1 for null terminator
+            skip += skip % 4; // word padding
 
             const char* next_addr =
                 reinterpret_cast<const char*>(current)

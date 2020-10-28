@@ -162,6 +162,7 @@ function bundle_resource(fname, data)
    -- char size[16]
    -- contents[...]
    -- null byte
+   -- padding (for word alignment)
 
    bundle:write(fname)
 
@@ -181,6 +182,13 @@ function bundle_resource(fname, data)
 
    -- BPCore requires data to be null-terminated
    bundle:write("\0")
+
+   -- BPCore requries subsequent data to be word-aligned.
+   --- Note: +1 for the null byte.
+   for i = 0, ((datalen + 1) % 4) - 1 do
+      bundle:write("\0")
+   end
+
 end
 
 
