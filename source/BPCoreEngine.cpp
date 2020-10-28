@@ -237,6 +237,11 @@ static const struct {
           platform->speaker().play_music(name, offset);
           return 0;
       }},
+     {"stop_music",
+      [](lua_State* L) -> int {
+          platform->speaker().stop_music();
+          return 0;
+      }},
      {"sound",
       [](lua_State* L) -> int {
           const auto name = lua_tostring(L, 1);
