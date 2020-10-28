@@ -1,6 +1,6 @@
 # BPCore-Engine
 
-This repository includes parts of the BlindJump C++ engine, hacked together with a Lua interpreter, with the intention of allowing people to make gameboy games without needing to write C++ code or to use a compiler. Evan Bowman recently discovered the Pico8 game engine, and wanted to see whether he could create a similar interface in Lua for an actual console.
+This repository includes parts of the BlindJump C++ engine, hacked together with a Lua interpreter, with the intention of allowing people to make gameboy games without needing to write C++ code or to use a compiler. The lua API for BPCore uses the simple APIs of fantasy consoles, like Pico8 or Tic80, as a model. In fact, many of the commands, like `spr()` and `btn()`, are almost the same.
 
 # Status
 
