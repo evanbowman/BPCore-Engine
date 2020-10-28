@@ -2254,6 +2254,40 @@ void Platform::enable_glyph_mode(bool enabled)
 }
 
 
+static u16 overlay_source_pal[16];
+static TextureData overlay_file_data;
+
+
+static void push_overlay_texture(const TextureData& info)
+{
+    current_overlay_texture = &info;
+
+    init_palette(current_overlay_texture, overlay_palette, true);
+
+    for (int i = 0; i < 16; ++i) {
+        auto from = Color::from_bgr_hex_555(overlay_palette[i]);
+        if (not overlay_was_faded) {
+            MEM_BG_PALETTE[16 + i] = from.bgr_hex_555();
+        } else {
+            const auto c = nightmode_adjust(real_color(last_color));
+            MEM_BG_PALETTE[16 + i] = blend(from, c, last_fade_amt);
+        }
+    }
+
+    if (validate_overlay_texture_size(*platform, info.tile_data_length_)) {
+        memcpy16((void*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0],
+                 info.tile_data_,
+                 info.tile_data_length_ / 2);
+    }
+
+    if (glyph_mode) {
+        for (auto& gm : ::glyph_table->obj_->mappings_) {
+            gm.reference_count_ = -1;
+        }
+    }
+}
+
+
 void Platform::load_overlay_texture(const char* name)
 {
     StringBuffer<48> palette_file(name);
@@ -2262,42 +2296,20 @@ void Platform::load_overlay_texture(const char* name)
     const auto img = fs().get_file(name);
     const auto palette = fs().get_file(palette_file.c_str());
 
-    u16 pal[16];
-
     if (img.data_ and palette.data_) {
 
-        memcpy(pal, palette.data_, sizeof pal);
+        memcpy(overlay_source_pal,
+               palette.data_,
+               sizeof overlay_source_pal);
 
-        TextureData info;
+        TextureData& info = overlay_file_data;
         info.name_ = name;
         info.tile_data_ = (const unsigned int*)img.data_;
-        info.palette_data_ = pal;
-        info.tile_data_length_ = img.size_ / 4;
+        info.palette_data_ = overlay_source_pal;
+        info.tile_data_length_ = img.size_;
         info.palette_data_length_ = 16;
 
-        init_palette(&info, overlay_palette, true);
-
-        for (int i = 0; i < 16; ++i) {
-            auto from = Color::from_bgr_hex_555(overlay_palette[i]);
-            if (not overlay_was_faded) {
-                MEM_BG_PALETTE[16 + i] = from.bgr_hex_555();
-            } else {
-                const auto c = nightmode_adjust(real_color(last_color));
-                MEM_BG_PALETTE[16 + i] = blend(from, c, last_fade_amt);
-            }
-        }
-
-        if (validate_overlay_texture_size(*this, info.tile_data_length_)) {
-            memcpy16((void*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0],
-                     info.tile_data_,
-                     info.tile_data_length_ * 2);
-        }
-
-        if (glyph_mode) {
-            for (auto& gm : ::glyph_table->obj_->mappings_) {
-                gm.reference_count_ = -1;
-            }
-        }
+        push_overlay_texture(info);
         return;
     }
 
@@ -2305,31 +2317,7 @@ void Platform::load_overlay_texture(const char* name)
 
         if (str_cmp(name, info.name_) == 0) {
 
-            current_overlay_texture = &info;
-
-            init_palette(current_overlay_texture, overlay_palette, true);
-
-            for (int i = 0; i < 16; ++i) {
-                auto from = Color::from_bgr_hex_555(overlay_palette[i]);
-                if (not overlay_was_faded) {
-                    MEM_BG_PALETTE[16 + i] = from.bgr_hex_555();
-                } else {
-                    const auto c = nightmode_adjust(real_color(last_color));
-                    MEM_BG_PALETTE[16 + i] = blend(from, c, last_fade_amt);
-                }
-            }
-
-            if (validate_overlay_texture_size(*this, info.tile_data_length_)) {
-                memcpy16((void*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0],
-                         info.tile_data_,
-                         info.tile_data_length_ / 2);
-            }
-
-            if (glyph_mode) {
-                for (auto& gm : ::glyph_table->obj_->mappings_) {
-                    gm.reference_count_ = -1;
-                }
-            }
+            push_overlay_texture(info);
         }
     }
 }
