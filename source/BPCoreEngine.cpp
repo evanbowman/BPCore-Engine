@@ -127,7 +127,7 @@ static const struct {
                     }, c);
           return 0;
       }},
-     {"texture",
+     {"txtr",
       [](lua_State* L) -> int {
           const int layer = lua_tonumber(L, 1);
           const char* filename = lua_tostring(L, 2);
@@ -310,18 +310,18 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
     {
         platform->screen().clear();
         platform->enable_glyph_mode(true);
-        // platform->load_overlay_texture("overlay");
-        // pf.fill_overlay(112);
-        // Text loading_text(pf, "loading...", {1, 18});
-        // platform->screen().display();
+        platform->load_overlay_texture("overlay");
+        pf.fill_overlay(112);
+        Text loading_text(pf, "loading...", {1, 18});
+        platform->screen().display();
         if (not pf.fs().init(pf)) {
             fatal_error("Fatal Error:",
                         "BPCore Engine failed to load resource bundle!");
         }
         // platform->enable_glyph_mode(false);
     }
-    // pf.fill_overlay(0);
-    // platform->screen().display();
+    pf.fill_overlay(0);
+    platform->screen().display();
 
     lua_ = lua_newstate(umm_lua_alloc, nullptr);
     lua_atpanic(lua_, &lua_panic);
