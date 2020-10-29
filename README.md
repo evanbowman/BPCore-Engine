@@ -2,8 +2,6 @@
 
 This repository includes parts of the [BlindJump](https://github.com/evanbowman/blind-jump-portable) C++ engine, hacked together with a Lua interpreter, with the intention of allowing people to make gameboy games without needing to write C++ code or to use a compiler. The lua API for BPCore uses the simple APIs of fantasy consoles, like Pico8 or Tic80, as a model. In fact, many of the commands, like `spr()` and `btn()`, are almost the same.
 
-*NOTE*: This project is a work-in-progress. See [Status](#status).
-
 # Architecture
 
 For ease of use, the `build.lua` script allows you to create Gameboy Advance ROMs entirely with Lua: you only need a copy of the `build.lua` script, a copy of the `BPCoreEngine.gba` rom, and an installation of Lua 5.3!
@@ -15,25 +13,52 @@ The `build.lua` script parses a user-defined `manifest.lua` file, which tells th
 
 local app = {
    name = "TestApplication",
-   files = {
-      -- some music
-      "music_test.raw",
 
-      -- entry point script
-      "main.lua",
-
-      -- some image files
+   tilesets = {
       "overlay.bmp",
       "tile0.bmp",
+   },
+
+   spritesheets = {
+      "spritesheet.bmp",
+   },
+
+   audio = {
+      "my_music.raw",
+   },
+
+   scripts = {
+      "main.lua",
+   },
+
+   misc = {
+      "some_data.txt",
    }
 }
 
 return app
+
 ```
 
 `build.lua` then creates a ROM file, by copying the compiled code in the BPCoreEngine.gba ROM, and appending a new section to the ROM, containing all of the resource files. The engine, upon startup, scans through the appropriate memory sections in the GBA cartridge address space, and finds the resource bundle. BPCore then loads the `main.lua` script from the application bundle, and turns over control to Lua (more or less, the engine does still process interrupts).
 
 # API
+
+## Sprites and Tiles
+
+The BPCore engine uses the Gameboy Advance's tile-based display mode. All sprites are 16x16 pixels in size, and all tiles are 8x8 pixels wide. The engine provides access to four tiles layers:
+
+* The overlay: comprised of 32x32 tiles, this layer displays in front of all other sprites and tile layers. The overlay uses layer id 0. The `print()` function draws its text using tile indices in the overlay tile layer.
+
+* Tile layer 1 (aka tile_1): a larger layer comprised of 64x64 tiles. Uses layer id 1. Displays behind sprites, but in front of all subsequent tile layers.
+
+* Tile layer 0 (aka tile_0): a larger layer comprised of 64x64 tiles. Uses layer id 2. Displays behind sprites and tile_1, but in front of the background layer.
+
+* The background: Another smaller layer, comprised of 32x32 tiles. Uses layer id 3. Displays behind all other layers.
+
+To load data from the a bundled file into VRAM, use the `txtr()` function, with one of the layer ids above. To load a spritesheet, you may also use the `txtr()` function, with layer id 4.
+
+## Function Reference
 
 * `delta()`
 Returns time since the last delta call in microseconds. Because games written in Lua may push the Gameboy CPU to its limits, games may not run at a steady framerate. You can either carefully fine-tune your game to run at a specific framerate, or, scale game updates based on the frame delta.
@@ -100,7 +125,7 @@ Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike 
 
 # Memory Constraints
 
-The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). The 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The GBA also has VRAM, for loading 
+The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). The 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The GBA also has VRAM, for loading tilesets and spritesheets. The amount of VRAM allowed varies by tile layer, and will soon be documented here.
 
 # Example
 
@@ -118,7 +143,7 @@ txtr(2, "tile0.bmp")
 -- Fill the tile0 map with some tiles.
 for i = 0, 63 do
    for j = 0, 63 do
-      tile(2, 1, i, j)
+      tile(2, i, j, 1)
    end
 end
 
@@ -179,14 +204,6 @@ main_loop(update, draw)
 
 ```
 
+# Quirks
 
-# Status
-
-This project is not very far along yet, mostly just a minimal outline for proof of concept. The ROM builds, of course, and supports all of the same features as the Blind Jump GBA engine. After building the ROM, you can use a script, `build.lua` to copy the contents of your lua scripts into the compiled ROM, and then the engine will search the ROM for the appended resource bundle, and execute the Lua code. So, the project works as a proof of concept, but until we have support for texture mapping from files in the resource bundle, you cannot really create a game with this engine yet. But at least we have a ROM skeleton, into which we can copy lua scripts, and we've got the Lua interpreter running on a gameboy, so that's a start!
-
-But, anyway, all of the source code, from Blind Jump, exists for the following features, it just needs to be hooked into Lua:
-* Link cable multiplayer
-* Digital sound mixer
-* Views and scrolling
-* Unicode text engine
-* Fades and other color palette effects
+The overlay tile layer shares graphics memory with the system font. If you load an overlay, and find that the colors of your text now display unpredictably, this is becuause the overlay text will always, by default, use the second and third colors to appear in an overlay tilesheet as the foreground and background color. To calibrate the color of the system text, place an 8x8 pixel tile (like the one pictured below) in index zero of any overlay texture. You may set the top red band to any arbitrary color. Change the gray band to the color that you want to use for the foreground color of the system text. Set the black band to the background color for the system text.
