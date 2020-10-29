@@ -60,6 +60,9 @@ To load data from the a bundled file into VRAM, use the `txtr()` function, with 
 
 ## Function Reference
 
+* `sleep(frames)`
+Sleep the game for N frames.
+
 * `delta()`
 Returns time since the last delta call in microseconds. Because games written in Lua may push the Gameboy CPU to its limits, games may not run at a steady framerate. You can either carefully fine-tune your game to run at a specific framerate, or, scale game updates based on the frame delta.
 
@@ -122,6 +125,9 @@ Play mono 16kHz signed 8bit PCM audio from the given source file string. All mus
 
 * `sound(source_file, priority)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike the music, sounds do not loop. The engine can only render four audio channels at a time--3 for sound effects, and one for the music. If you already have three sounds playing, the sound effect with the lowest priority will be evicted if the sound that you are requesting has a higher priority.
+
+* `fdog()`
+Feed the engine's watchdog counter. You do not need to call this function if you are already calling the clear function. But if the engine does not receive `clear()` and `display()` calls for more than ten seconds, it assumes that a critical error occurred, and reloads the ROM. If you are running a complicated piece of code, perhaps when loading a level, you may want to feed the watchdog every so often. Or, if your program is not graphically intensive, and only rarely refreshes the screen, you may need to manually feed the watchdog.
 
 # Memory Constraints
 

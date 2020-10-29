@@ -366,6 +366,11 @@ static const struct {
           platform->speaker().play_sound(name, priority);
           return 0;
       }},
+     {"sleep",
+      [](lua_State* L) -> int {
+          platform->sleep(lua_tointeger(L, 1));
+          return 0;
+      }},
      {"file",
       [](lua_State* L) -> int {
           const auto name = lua_tostring(L, 1);
@@ -410,6 +415,11 @@ static const struct {
                                       lua_toboolean(L, 4));
               break;
           }
+          return 0;
+      }},
+     {"fdog",
+      [](lua_State* L) -> int {
+          platform->feed_watchdog();
           return 0;
       }}
 };
