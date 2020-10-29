@@ -206,4 +206,9 @@ main_loop(update, draw)
 
 # Quirks
 
-The overlay tile layer shares graphics memory with the system font. If you load an overlay, and find that the colors of your text now display unpredictably, this is becuause the overlay text will always, by default, use the second and third colors to appear in an overlay tilesheet as the foreground and background color. To calibrate the color of the system text, place an 8x8 pixel tile (like the one pictured below) in index zero of any overlay texture. You may set the top red band to any arbitrary color. Change the gray band to the color that you want to use for the foreground color of the system text. Set the black band to the background color for the system text.
+The overlay tile layer shares graphics memory with the system font. If you load an overlay, and find that the colors of your text now display unpredictably, this is becuause the overlay text will always, by default, use the second and third colors to appear in an overlay tilesheet as the foreground and background color. To calibrate the color of the system text, place an 8x8 pixel tile (like the one pictured below) in index zero of any overlay texture. You may set the top gray band to any arbitrary color in your tileset. Change the middle white band to the color that you want to use for the foreground color of the system text. Set the bottom black band to the background color for the system text.
+
+<p align="center">
+  <img src="index_tile.png"/>
+</p>
+
