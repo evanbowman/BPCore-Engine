@@ -420,6 +420,8 @@ static void fatal_error(const char* heading,
 {
     platform->load_overlay_texture("overlay_text_key");
 
+    platform->scroll(Layer::overlay, 0, 0);
+
     platform->screen().clear();
 
     platform->enable_glyph_mode(true);
