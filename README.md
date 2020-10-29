@@ -33,6 +33,22 @@ return app
 
 # API
 
+## Sprites and Tiles
+
+The BPCore engine uses the Gameboy Advance's tile-based display mode. All sprites are 16x16 pixels in size, and all tiles are 8x8 pixels wide. The engine provides access to four tiles layers:
+
+* The overlay: comprised of 32x32 tiles, this layer displays in front of all other sprites and tile layers. The overlay uses layer id 0. The `print()` function draws its text using tile indices in the overlay tile layer.
+
+* Tile layer 1 (aka tile_1): a larger layer comprised of 64x64 tiles. Uses layer id 1. Displays behind sprites, but in front of all subsequent tile layers.
+
+* Tile layer 0 (aka tile_0): a larger layer comprised of 64x64 tiles. Uses layer id 2. Displays behind sprites and tile_1, but in front of the background layer.
+
+* The background: Another smaller layer, comprised of 32x32 tiles. Uses layer id 3. Displays behind all other layers.
+
+To load data from the a bundled file into VRAM, use the `txtr()` function, with one of the layer ids above. To load a spritesheet, you may also use the `txtr()` function, with layer id 4.
+
+## Function Reference
+
 * `delta()`
 Returns time since the last delta call in microseconds. Because games written in Lua may push the Gameboy CPU to its limits, games may not run at a steady framerate. You can either carefully fine-tune your game to run at a specific framerate, or, scale game updates based on the frame delta.
 
