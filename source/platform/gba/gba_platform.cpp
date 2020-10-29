@@ -17,6 +17,7 @@
 #include "util.hpp"
 #include <algorithm>
 #include "umm_malloc/src/umm_malloc.h"
+#include "images.cpp"
 
 
 void english__to_string(int num, char* buffer, int base);
@@ -122,7 +123,7 @@ void start(Platform&);
 static Platform* platform;
 
 
-[[gnu::used]] alignas(4) static EWRAM_DATA u8 heap[220000];
+[[gnu::used]] alignas(4) static EWRAM_DATA u8 heap[240000];
 
 void *UMM_MALLOC_CFG_HEAP_ADDR = &heap;
 uint32_t UMM_MALLOC_CFG_HEAP_SIZE = sizeof heap;
@@ -940,9 +941,6 @@ Vec2<u32> Platform::Screen::size() const
 ////////////////////////////////////////////////////////////////////////////////
 // Platform
 ////////////////////////////////////////////////////////////////////////////////
-
-
-#include "images.cpp"
 
 
 static const TextureData* current_spritesheet = &sprite_textures[0];
@@ -2340,6 +2338,24 @@ Platform::Platform()
         object_attribute_back_buffer[i].attribute_2 = ATTR2_PRIORITY(3);
         object_attribute_back_buffer[i].attribute_0 |= attr0_mask::disabled;
     }
+
+
+    for (auto& prefix : overlay_textures) {
+        if (str_cmp(prefix.name_, "overlay") == 0) {
+            memcpy16((void*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0],
+                     prefix.tile_data_,
+                     prefix.tile_data_length_ / 2);
+
+            for (int i = 0; i < 16; ++i) {
+                auto from = Color::from_bgr_hex_555(prefix.palette_data_[i]);
+                if (not overlay_was_faded) {
+                    MEM_BG_PALETTE[16 + i] = from.bgr_hex_555();
+                }
+            }
+
+            break;
+        }
+    }
 }
 
 
@@ -2377,10 +2393,22 @@ static void push_overlay_texture(const TextureData& info)
         }
     }
 
-    if (validate_overlay_texture_size(*platform, info.tile_data_length_)) {
-        memcpy16((void*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0],
-                 info.tile_data_,
-                 info.tile_data_length_ / 2);
+    // For the purposes of displaying text, we copy a fixed image into the first
+    // eighty-two indices, followed by the user's image.
+    for (auto& prefix : overlay_textures) {
+        if (str_cmp(prefix.name_, "overlay") == 0) {
+
+            if (not validate_overlay_texture_size(*platform, info.tile_data_length_ + prefix.tile_data_length_)) {
+                return;
+            }
+
+            memcpy16((char*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0] +
+                     prefix.tile_data_length_,
+                     info.tile_data_,
+                     info.tile_data_length_ / 2);
+            break;
+        }
+
     }
 
     if (glyph_mode) {
@@ -2426,7 +2454,7 @@ void Platform::load_overlay_texture(const char* name)
 }
 
 
-static const TileDesc bad_glyph = 111;
+static const TileDesc bad_glyph = 82;
 
 
 static constexpr int vram_tile_size()

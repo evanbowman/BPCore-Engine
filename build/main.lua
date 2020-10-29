@@ -3,10 +3,10 @@ fade(1)
 
 txtr(0, "overlay.bmp")
 
-tile(0, 9, 9, 111)
-tile(0, 8, 9, 110)
-tile(0, 7, 9, 91)
-tile(0, 6, 9, 1)
+tile(0, 9, 9, 28)
+tile(0, 8, 9, 27)
+tile(0, 7, 9, 16)
+tile(0, 6, 9, tile(0, 9, 9))
 
 print("Hello, world!", 3, 3)
 

@@ -269,6 +269,12 @@ static const struct {
 
               switch (static_cast<Layer>(l)) {
               case Layer::overlay:
+                  // NOTE: The first 82 tiles in the overlay graphics layer are
+                  // reserved for glyphs. We adjust the user-supplied indices
+                  // accordingly.
+                  platform->set_tile(static_cast<Layer>(l), x, y, t + 83);
+                  break;
+
               case Layer::map_1:
               case Layer::map_0:
               case Layer::background:
@@ -278,7 +284,19 @@ static const struct {
               return 0;
           } else {
               switch (static_cast<Layer>(l)) {
-              case Layer::overlay:
+              case Layer::overlay: {
+                  auto t = platform->get_tile(static_cast<Layer>(l), x, y);
+                  if (t <= 82) {
+                      // The engine does not allow users to capture the tile
+                      // index of a glyph.
+                      t = 0;
+                  } else {
+                      t -= 83;
+                  }
+                  lua_pushinteger(L, t);
+                  return 1;
+              }
+
               case Layer::map_1:
               case Layer::map_0:
               case Layer::background:
@@ -403,7 +421,7 @@ static void fatal_error(const char* heading,
     platform->screen().clear();
 
     platform->enable_glyph_mode(true);
-    platform->fill_overlay(112);
+    platform->screen().fade(1.f);
 
     Text t(*platform, heading, {1, 1});
 
@@ -437,8 +455,7 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
     {
         platform->screen().clear();
         platform->enable_glyph_mode(true);
-        platform->load_overlay_texture("overlay");
-        pf.fill_overlay(112);
+        platform->screen().fade(1.f);
         Text loading_text(pf, "loading...", {1, 18});
         platform->screen().display();
         if (not pf.fs().init(pf)) {
@@ -447,7 +464,7 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
         }
         // platform->enable_glyph_mode(false);
     }
-    pf.fill_overlay(0);
+    platform->screen().fade(0.f);
     platform->screen().display();
 
     lua_ = lua_newstate(umm_lua_alloc, nullptr);
