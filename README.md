@@ -143,7 +143,7 @@ txtr(2, "tile0.bmp")
 -- Fill the tile0 map with some tiles.
 for i = 0, 63 do
    for j = 0, 63 do
-      tile(2, 1, i, j)
+      tile(2, i, j, 1)
    end
 end
 
