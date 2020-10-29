@@ -418,6 +418,8 @@ static const struct {
 static void fatal_error(const char* heading,
                         const char* error)
 {
+    platform->load_overlay_texture("overlay_text_key");
+
     platform->screen().clear();
 
     platform->enable_glyph_mode(true);

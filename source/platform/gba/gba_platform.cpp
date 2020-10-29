@@ -2451,6 +2451,8 @@ void Platform::load_overlay_texture(const char* name)
             push_overlay_texture(info);
         }
     }
+
+    fill_overlay(0);
 }
 
 

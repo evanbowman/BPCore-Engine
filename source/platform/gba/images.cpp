@@ -15,6 +15,8 @@
 
 #include "data/overlay.h"
 //;
+#include "data/overlay_text_key.h"
+//;
 #include "data/charset.h"
 //
 
@@ -47,6 +49,8 @@ static const TextureData tile_textures[] = {
 static const TextureData overlay_textures[] = {
 
     TEXTURE_INFO(overlay),
+//;
+    TEXTURE_INFO(overlay_text_key),
 //;
     TEXTURE_INFO(charset),
 //
