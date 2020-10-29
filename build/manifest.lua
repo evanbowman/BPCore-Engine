@@ -17,6 +17,10 @@ local app = {
 
    scripts = {
       "main.lua",
+   },
+
+   misc = {
+
    }
 }
 

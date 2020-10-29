@@ -49,12 +49,56 @@ static const struct {
              platform->network_peer().disconnect();
          }
          platform->network_peer().connect(nullptr);
-         return 0;
+         lua_pushboolean(L, platform->network_peer().is_connected());
+         return 1;
      }},
     {"disconnect",
      [](lua_State* L) -> int {
          platform->network_peer().disconnect();
          return 0;
+     }},
+    {"send",
+     [](lua_State* L) -> int {
+         char message[Platform::NetworkPeer::max_message_size];
+         __builtin_memset(message + 1, 0, (sizeof message) - 1);
+         message[0] = 1;
+
+         const char* str = lua_tostring(L, 1);
+         const auto len = str_len(str);
+
+         if (len > (sizeof message) - 1) {
+             lua_pushboolean(L, false);
+             return 1;
+         }
+
+         __builtin_memcpy(message + 1, str, len);
+
+         Platform::NetworkPeer::Message packet;
+         packet.data_ = (const byte*)message;
+         packet.length_ = sizeof message;
+
+         while (not platform->network_peer().send_message(packet)) {
+             if (not platform->network_peer().is_connected()) {
+                 lua_pushboolean(L, false);
+                 return 1;
+             }
+         }
+
+         lua_pushboolean(L, true);
+         return 1;
+     }},
+    {"recv",
+     [](lua_State* L) -> int {
+         if (auto message = platform->network_peer().poll_message()) {
+             lua_pushlstring(L, (const char*)message->data_ + 1,
+                             Platform::NetworkPeer::max_message_size - 1);
+             platform->
+                 network_peer()
+                 .poll_consume(Platform::NetworkPeer::max_message_size);
+             return 1;
+         }
+         lua_pushnil(L);
+         return 1;
      }},
     {"clear",
      [](lua_State* L) -> int {
@@ -107,7 +151,7 @@ static const struct {
           }
           return 1;
       }},
-     {"text",
+     {"print",
       [](lua_State* L) -> int {
           const int argc = lua_gettop(L);
           Text::OptColors c;
@@ -177,6 +221,17 @@ static const struct {
 
           return 0;
       }},
+     {"priority",
+      [](lua_State* L) {
+          const int s = lua_tointeger(L, 1);
+          const int b = lua_tointeger(L, 2);
+          const int t0 = lua_tointeger(L, 3);
+          const int t1 = lua_tointeger(L, 4);
+
+          platform->set_priorities(s, b, t0, t1);
+
+          return 0;
+      }},
      {"scroll",
       [](lua_State* L) -> int {
           const int l = lua_tointeger(L, 1);
@@ -187,19 +242,63 @@ static const struct {
 
           return 0;
       }},
+     {"camera",
+      [](lua_State* L) -> int {
+          const int x = lua_tonumber(L, 1);
+          const int y = lua_tonumber(L, 2);
+
+          auto view = platform->screen().get_view();
+          const auto& screen_size = platform->screen().size();
+
+          view.set_center({Float(x - int(screen_size.x / 2)),
+                           Float(y - int(screen_size.y / 2))});
+
+          platform->screen().set_view(view);
+
+          return 0;
+      }},
      {"tile",
+      [](lua_State* L) -> int {
+          const int argc = lua_gettop(L);
+          const int l = lua_tointeger(L, 1);
+          const int x = lua_tointeger(L, 2);
+          const int y = lua_tointeger(L, 3);
+
+          if (argc == 4) {
+              const int t = lua_tointeger(L, 4);
+
+              switch (static_cast<Layer>(l)) {
+              case Layer::overlay:
+              case Layer::map_1:
+              case Layer::map_0:
+              case Layer::background:
+                  platform->set_tile(static_cast<Layer>(l), x, y, t);
+                  break;
+              }
+              return 0;
+          } else {
+              switch (static_cast<Layer>(l)) {
+              case Layer::overlay:
+              case Layer::map_1:
+              case Layer::map_0:
+              case Layer::background:
+                  lua_pushinteger(L, platform->get_tile(static_cast<Layer>(l), x, y));
+                  return 1;
+              }
+          }
+          return 0;
+      }},
+     {"fill",
       [](lua_State* L) -> int {
           const int l = lua_tointeger(L, 1);
           const int t = lua_tointeger(L, 2);
-          const int x = lua_tointeger(L, 3);
-          const int y = lua_tointeger(L, 4);
-
           switch (static_cast<Layer>(l)) {
           case Layer::overlay:
-          case Layer::map_1:
-          case Layer::map_0:
-          case Layer::background:
-              platform->set_tile(static_cast<Layer>(l), x, y, t);
+              platform->fill_overlay(t);
+              break;
+
+          // TODO: implement fill for other layers...
+          default:
               break;
           }
           return 0;
@@ -248,6 +347,20 @@ static const struct {
           const auto priority = lua_tointeger(L, 2);
           platform->speaker().play_sound(name, priority);
           return 0;
+      }},
+     {"file",
+      [](lua_State* L) -> int {
+          const auto name = lua_tostring(L, 1);
+          auto f = platform->fs().get_file(name);
+          if (f.data_) {
+              lua_pushinteger(L, (size_t)f.data_);
+              lua_pushinteger(L, (u32)f.size_);
+              return 2;
+          } else {
+              lua_pushnil(L);
+              lua_pushinteger(L, 0);
+              return 2;
+          }
       }},
      {"fade",
       [](lua_State* L) -> int {
@@ -321,7 +434,6 @@ static int lua_panic(lua_State* L)
 BPCoreEngine::BPCoreEngine(Platform& pf)
 {
     platform = &pf;
-
     {
         platform->screen().clear();
         platform->enable_glyph_mode(true);

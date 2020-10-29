@@ -35,12 +35,6 @@ return app
 
 # API
 
-* `clear()`
-Clear all sprites from the screen. Should be called once per frame. `clear()` also performs a VSync, so all game updates should be performed before the clear call, and all draw calls should be placed after the clear call. For performance reasons, `clear()` does not erase tiles from the screen. `tile()` calls, and by extension, `text()` calls, are persistent.
-
-* `display()`
-Show any recent `spr()` and `tile()` calls.
-
 * `delta()`
 Returns time since the last delta call in microseconds. Because games written in Lua may push the Gameboy CPU to its limits, games may not run at a steady framerate. You can either carefully fine-tune your game to run at a specific framerate, or, scale game updates based on the frame delta.
 
@@ -53,7 +47,7 @@ Returns true if the button associated with `num` transitioned from unpressed to 
 * `btnnp(num)`
 Returns true if the button associated with `num` transitioned from pressed to unpressed.
 
-* `text(string, x, y, [foreground color hex], [background color hex])`
+* `print(string, x, y, [foreground color hex], [background color hex])`
 Render text to the overlay tile layer, using the system font. Supports Utf-8, although the engine does not include the whole universe of unicode glyphs, for practical reasons. BPCore ships with english alphanumeric characters, accented characters for Spanish and French, and Japanese Katakana. By default, the string will use color indices 2 and 3 in the overlay layer's palette, but you can also use custom color ids. Note that x and y refer to tile layer coordinates in the overlay, not absolute screen pixels offsets.
 
 * `txtr(layer, filename)`
@@ -62,8 +56,26 @@ Load image data from the resource bundle into VRAM. Layer refers to either the s
 * `spr(index, x, y, [xflip], [yflip])`
 Draw `index` from the spritesheet at screen pixel offset (`x`,`y`). Includes optional flipping flags. The spr command is unfinished, but all sprites will be 16x16 pixels in size.
 
-* `tile(layer, tile_num, x, y)`
-Draw tile indicated by `tile_num` in tile layer `layer`, with coordinates `x` and `y`. Unlike `spr()`, tiles are persistent, and do not need to be redrawn for each frame.
+* `tile(layer, x, y, [tile_num])`
+Draw tile indicated by `tile_num` in tile layer `layer`, with coordinates `x` and `y`. Unlike `spr()`, tiles are persistent, and do not need to be redrawn for each frame. If called without `tile_num`, will instead return the current tile value at `x`,`y` in `layer`.
+
+* `fade(amount, [custom_color_hex], [include_sprites], [include_overlay])`
+Fade the screen. Amount should be in the range `0.0` to `1.0`.
+
+* `camera(x, y)`
+Set the center of the view.
+
+* `scroll(layer, x_amount, y_amount)`
+In addition to re-anchoring the camera, you may also manually set the scrolling for any of the tile layers. The scroll amounts for tile_0, tile_1, and the background are all relative, so they will be applied in addition to the camera scrolling. The camera does not scroll the overlay, so the scroll amounts for this layer are absolute.
+
+* `priority(sprite_pr, background_pr, tile0_pr, tile1_pr)`
+Reorder the engine's rendering layers, by assigning new priorities to the layers. You should use values 0-3 for priorities, 0 being the nearest layer to the screen, and 3 being the furthest layer. The overlay priority defaults to 0, and may not be changed. Default values upon startup: background=3, tile_0=3, tile_1 = 2, sprite=1, overlay=0. Certain layers will display behind other layers when assigned the same priority. Order of precedence, if all layers were to be assigned the same priority value: sprite > tile_0 > background > overlay > tile_1.
+
+* `clear()`
+Clear all sprites from the screen. Should be called once per frame. `clear()` also performs a VSync, so all game updates should be performed before the clear call, and all draw calls should be placed after the clear call. For performance reasons, `clear()` does not erase tiles from the screen. `tile()` calls, and by extension, `print()` calls, are persistent.
+
+* `display()`
+Show any recent `spr()` and `tile()` calls.
 
 * `poke(address, byte)`
 Set byte at address.
@@ -77,17 +89,18 @@ Returns byte value at address.
 * `peek4(address)`
 Returns word value at address.
 
-* `fade(amount, [custom_color_hex], [include_sprites], [include_overlay])`
-Fade the screen. Amount should be in the range `0.0` to `1.0`.
-
-* `scroll(layer, x_amount, y_amount)`
-Scroll tile layer by `x_amount`, `y_amount`. Note that on the Gameboy Advance, scroll offsets are inverted.
+* `file(name)`
+Returns a pointer,length to any file in the resource bundle. The data can then be read with the peek/peek4 functions. You cannot write to files, as they reside in ROM, and are therefore, by definition, read-only.
 
 * `music(source_file, offset)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. All music loops, and you may specify a microsecond offset into the music file with the `offset` parameter.
 
 * `sound(source_file, priority)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike the music, sounds do not loop. The engine can only render four audio channels at a time--3 for sound effects, and one for the music. If you already have three sounds playing, the sound effect with the lowest priority will be evicted if the sound that you are requesting has a higher priority.
+
+# Memory Constraints
+
+The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). The 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The GBA also has VRAM, for loading 
 
 # Example
 
@@ -157,7 +170,7 @@ function draw()
 end
 
 -- Let's show how much ram we're using
-text(tostring(collectgarbage("count") * 1024), 3, 5)
+print(tostring(collectgarbage("count") * 1024), 3, 5)
 
 
 -- enter main loop

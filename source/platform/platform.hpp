@@ -101,6 +101,11 @@ public:
         return system_clock_;
     }
 
+    void set_priorities(int sprite_prior,
+                        int background_prior,
+                        int tile0_prior,
+                        int tile1_prior);
+
     // NOTE: I must admit, the platform class interface has become quite
     // bloated.
 
@@ -326,6 +331,10 @@ public:
     private:
         Screen();
 
+        void init_layers(int background_priority,
+                         int tile0_priority,
+                         int tile1_priority);
+
         friend class Platform;
 
         View view_;
@@ -536,7 +545,7 @@ public:
         // interrupts, along with a bunch of timer interrupts. It's just not
         // realistic to make the messages too much larger, if you want to
         // receive the data within a reasonable amount of time on all platforms.
-        static const u32 max_message_size = 12;
+        static const u32 max_message_size = 16;
 
         // IMPORTANT!!! Messages containing all zeroes are not guaranteed to be
         // received on some platforms, so you should have at least some high

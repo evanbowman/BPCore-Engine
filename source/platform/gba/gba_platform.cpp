@@ -397,6 +397,42 @@ static volatile u16* reg_blendalpha = (volatile u16*)0x04000052;
 #include "gba_color.hpp"
 
 
+static int sprite_priority = 1;
+
+
+void Platform::set_priorities(int sprite_prior,
+                              int background_prior,
+                              int tile0_prior,
+                              int tile1_prior)
+{
+    screen().init_layers(background_prior, tile0_prior, tile1_prior);
+    ::sprite_priority = sprite_prior;
+}
+
+
+void Platform::Screen::init_layers(int background_prior,
+                                   int tile0_prior,
+                                   int tile1_prior)
+{
+    // Tilemap layer 0
+    *bg0_control = BG_CBB(cbb_t0_texture) | BG_SBB(sbb_t0_tiles) |
+                   BG_REG_64x64 | BG_PRIORITY(background_prior) | BG_MOSAIC;
+
+    // Tilemap layer 1
+    *bg3_control = BG_CBB(cbb_t1_texture) | BG_SBB(sbb_t1_tiles) |
+                   BG_REG_64x64 | BG_PRIORITY(tile0_prior) | BG_MOSAIC;
+
+    // The starfield background
+    *bg1_control = BG_CBB(cbb_bg_texture) | BG_SBB(sbb_bg_tiles) |
+                   BG_PRIORITY(tile1_prior) | BG_MOSAIC;
+
+    // The overlay
+    *bg2_control = BG_CBB(cbb_overlay_texture) | BG_SBB(sbb_overlay_tiles) |
+                   BG_PRIORITY(0) | BG_MOSAIC;
+}
+
+
+
 Platform::Screen::Screen() : userdata_(nullptr)
 {
     REG_DISPCNT = MODE_0 | OBJ_ENABLE | OBJ_MAP_1D | BG0_ENABLE | BG1_ENABLE |
@@ -406,21 +442,7 @@ Platform::Screen::Screen() : userdata_(nullptr)
 
     *reg_blendalpha = BLDA_BUILD(0x40 / 8, 0x40 / 8);
 
-    // Tilemap layer 0
-    *bg0_control = BG_CBB(cbb_t0_texture) | BG_SBB(sbb_t0_tiles) |
-                   BG_REG_64x64 | BG_PRIORITY(3) | BG_MOSAIC;
-
-    // Tilemap layer 1
-    *bg3_control = BG_CBB(cbb_t1_texture) | BG_SBB(sbb_t1_tiles) |
-                   BG_REG_64x64 | BG_PRIORITY(2) | BG_MOSAIC;
-
-    // The starfield background
-    *bg1_control = BG_CBB(cbb_bg_texture) | BG_SBB(sbb_bg_tiles) |
-                   BG_PRIORITY(3) | BG_MOSAIC;
-
-    // The overlay
-    *bg2_control = BG_CBB(cbb_overlay_texture) | BG_SBB(sbb_overlay_tiles) |
-                   BG_PRIORITY(0) | BG_MOSAIC;
+    init_layers(3, 3, 2);
 
     view_.set_size(this->size().cast<Float>());
 
@@ -624,6 +646,13 @@ void Platform::Screen::draw(const Sprite& spr)
             spr.get_position().cast<s32>() - spr.get_origin().cast<s32>();
 
         const auto view_center = view_.get_center().cast<s32>();
+
+        auto abs_position = position - view_center;
+        if (abs_position.x < -16 or abs_position.x > 256 or
+            abs_position.y < -16 or abs_position.y > 176 ) {
+            return;
+        }
+
         auto oa = object_attribute_back_buffer + oam_write_index;
         if (spr.get_alpha() not_eq Sprite::Alpha::translucent) {
             oa->attribute_0 = ATTR0_COLOR_16 | ATTR0_SQUARE;
@@ -631,8 +660,6 @@ void Platform::Screen::draw(const Sprite& spr)
             oa->attribute_0 = ATTR0_COLOR_16 | ATTR0_SQUARE | ATTR0_BLEND;
         }
         oa->attribute_1 = ATTR1_SIZE_16; // clear attr1
-
-        auto abs_position = position - view_center;
 
         oa->attribute_0 &= (0xff00 & ~((1 << 8) | (1 << 9))); // clear attr0
 
@@ -679,7 +706,7 @@ void Platform::Screen::draw(const Sprite& spr)
         oa->attribute_1 |= (abs_position.x + x_off) & 0x01ff;
         oa->attribute_2 = 2 + spr.get_texture_index() * scale + tex_off;
         oa->attribute_2 |= pb;
-        oa->attribute_2 |= ATTR2_PRIORITY(1);
+        oa->attribute_2 |= ATTR2_PRIORITY(::sprite_priority);
         oam_write_index += 1;
     };
 
@@ -781,6 +808,8 @@ static bool overlay_back_buffer_changed = false;
 
 void Platform::scroll(Layer layer, u16 xscroll, u16 yscroll)
 {
+    const auto view_offset = screen().get_view().get_center();
+
     switch (layer) {
     case Layer::overlay:
         *bg2_x_scroll = xscroll;
@@ -788,18 +817,18 @@ void Platform::scroll(Layer layer, u16 xscroll, u16 yscroll)
         break;
 
     case Layer::map_1:
-        *bg3_x_scroll = xscroll;
-        *bg3_y_scroll = yscroll;
+        *bg3_x_scroll = xscroll + view_offset.x;
+        *bg3_y_scroll = yscroll + view_offset.y;
         break;
 
     case Layer::map_0:
-        *bg0_x_scroll = xscroll;
-        *bg0_y_scroll = yscroll;
+        *bg0_x_scroll = xscroll + view_offset.x;
+        *bg0_y_scroll = yscroll + view_offset.y;
         break;
 
     case Layer::background:
-        *bg1_x_scroll = xscroll;
-        *bg1_y_scroll = yscroll;
+        *bg1_x_scroll = xscroll + view_offset.x;
+        *bg1_y_scroll = yscroll + view_offset.y;
         break;
     }
 }
@@ -863,12 +892,15 @@ void Platform::Screen::display()
         info.locked_ = false;
     }
 
-    // auto view_offset = view_.get_center().cast<s32>();
-    // *bg0_x_scroll = view_offset.x;
-    // *bg0_y_scroll = view_offset.y;
+    auto view_offset = view_.get_center().cast<s32>();
+    *bg0_x_scroll = view_offset.x;
+    *bg0_y_scroll = view_offset.y;
 
-    // *bg3_x_scroll = view_offset.x;
-    // *bg3_y_scroll = view_offset.y;
+    *bg3_x_scroll = view_offset.x;
+    *bg3_y_scroll = view_offset.y;
+
+    *bg1_x_scroll = view_offset.x;
+    *bg1_y_scroll = view_offset.y;
 
     // // Depending on the amount of the background scroll, we want to mask off
     // // certain parts of bg0 and bg3. The background tiles wrap when they scroll
@@ -895,9 +927,6 @@ void Platform::Screen::display()
     // } else {
     //     REG_WIN0V = (0 << 8) | (size().y);
     // }
-
-    // *bg1_x_scroll = view_offset.x * 0.3f;
-    // *bg1_y_scroll = view_offset.y * 0.3f;
 }
 
 
@@ -2700,14 +2729,30 @@ void Platform::set_tile(Layer layer, u16 x, u16 y, u16 val)
         if (x > 63 or y > 63) {
             return;
         }
-        MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 64] = val;
+        if (x < 32 and y < 32) {
+            MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 32] = val;
+        } else if (y < 32) {
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 1][(x - 32) + y * 32] = val;
+        } else if (x < 32) {
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 2][x + (y - 32) * 32] = val;
+        } else {
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 3][(x - 32) + (y - 32) * 32] = val;
+        }
         break;
 
     case Layer::map_0:
         if (x > 63 or y > 63) {
             return;
         }
-        MEM_SCREENBLOCKS[sbb_t0_tiles][x + y * 64] = val;
+        if (x < 32 and y < 32) {
+            MEM_SCREENBLOCKS[sbb_t0_tiles][x + y * 32] = val;
+        } else if (y < 32) {
+            MEM_SCREENBLOCKS[sbb_t0_tiles + 1][(x - 32) + y * 32] = val;
+        } else if (x < 32) {
+            MEM_SCREENBLOCKS[sbb_t0_tiles + 2][x + (y - 32) * 32] = val;
+        } else {
+            MEM_SCREENBLOCKS[sbb_t0_tiles + 3][(x - 32) + (y - 32) * 32] = val;
+        }
         break;
 
     case Layer::background:

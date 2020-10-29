@@ -3,19 +3,19 @@ fade(1)
 
 txtr(0, "overlay.bmp")
 
-tile(0, 111, 9, 9)
-tile(0, 110, 8, 9)
-tile(0, 91, 7, 9)
-tile(0, 1, 6, 9)
+tile(0, 9, 9, 111)
+tile(0, 8, 9, 110)
+tile(0, 7, 9, 91)
+tile(0, 6, 9, 1)
 
-text("Hello, world!", 3, 3)
+print("Hello, world!", 3, 3)
 
 txtr(2, "tile0.bmp")
 
 
-for i = 0, 63 do
-   for j = 0, 63 do
-      tile(2, 1, i, j)
+for i = 15, 45 do
+   for j = 15, 45 do
+      tile(2, i, j, 1)
    end
 end
 
@@ -40,38 +40,39 @@ end
 
 
 local x = 0
-local dir = 0
+local y = 0
 
 function update(dt)
 
-   if btnp(6) then
+   if btnp(0) then
       fade(0.5)
-   elseif btnnp(6) then
+   elseif btnnp(0) then
       fade(0)
    end
 
-   if dir == 0 then
-      if x < 240 then
-         x = x + 1
-      else
-         dir = 1
-      end
-   else
-      if x > 0 then
-         x = x - 1
-      else
-         dir = 0
-      end
+   if btn(5) then
+      x = x + 2
+   elseif btn(4) then
+      x = x - 2
    end
+
+   if btn(6) then
+      y = y - 2
+   elseif btn(7) then
+      y = y + 2
+   end
+
+   camera(x, y)
 end
 
 
 function draw()
-   spr(0, x, 60)
+   spr(0, x, y)
+   spr(0, 30, 30)
 end
 
 
-text(tostring(collectgarbage("count") * 1024), 3, 5)
+print(tostring(collectgarbage("count") * 1024), 3, 5)
 
 
 main_loop(update, draw)

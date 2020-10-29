@@ -21,22 +21,6 @@
 #include "lualib.h"
 
 
-static int luaB_print (lua_State *L) {
-  int n = lua_gettop(L);  /* number of arguments */
-  int i;
-  for (i = 1; i <= n; i++) {  /* for each argument */
-    size_t l;
-    const char *s = luaL_tolstring(L, i, &l);  /* convert it to string */
-    if (i > 1)  /* not the first element? */
-      lua_writestring("\t", 1);  /* add a tab before it */
-    lua_writestring(s, l);  /* print it */
-    lua_pop(L, 1);  /* pop result */
-  }
-  lua_writeline();
-  return 0;
-}
-
-
 /*
 ** Creates a warning with all given arguments.
 ** Check first for errors; otherwise an error may interrupt
@@ -493,7 +477,6 @@ static const luaL_Reg base_funcs[] = {
   {"next", luaB_next},
   {"pairs", luaB_pairs},
   {"pcall", luaB_pcall},
-  {"print", luaB_print},
   {"warn", luaB_warn},
   {"rawequal", luaB_rawequal},
   {"rawlen", luaB_rawlen},
@@ -524,4 +507,3 @@ LUAMOD_API int luaopen_base (lua_State *L) {
   lua_setfield(L, -2, "_VERSION");
   return 1;
 }
-

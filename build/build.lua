@@ -280,6 +280,11 @@ for _, fname in pairs(application["audio"]) do
 end
 
 
+for _, fname in pairs(application["misc"]) do
+   bundle_resource(fname, contents(fname))
+end
+
+
 -- write one empty header
 for i = 0, 48 do
    bundle:write("\0")
