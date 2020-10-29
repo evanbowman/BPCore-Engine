@@ -13,20 +13,31 @@ The `build.lua` script parses a user-defined `manifest.lua` file, which tells th
 
 local app = {
    name = "TestApplication",
-   files = {
-      -- some music
-      "music_test.raw",
 
-      -- entry point script
-      "main.lua",
-
-      -- some image files
+   tilesets = {
       "overlay.bmp",
       "tile0.bmp",
+   },
+
+   spritesheets = {
+      "spritesheet.bmp",
+   },
+
+   audio = {
+      "my_music.raw",
+   },
+
+   scripts = {
+      "main.lua",
+   },
+
+   misc = {
+      "some_data.txt",
    }
 }
 
 return app
+
 ```
 
 `build.lua` then creates a ROM file, by copying the compiled code in the BPCoreEngine.gba ROM, and appending a new section to the ROM, containing all of the resource files. The engine, upon startup, scans through the appropriate memory sections in the GBA cartridge address space, and finds the resource bundle. BPCore then loads the `main.lua` script from the application bundle, and turns over control to Lua (more or less, the engine does still process interrupts).
@@ -114,7 +125,7 @@ Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike 
 
 # Memory Constraints
 
-The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). The 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The GBA also has VRAM, for loading 
+The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). The 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The GBA also has VRAM, for loading tilesets and spritesheets. The amount of VRAM allowed varies by tile layer, and will soon be documented here.
 
 # Example
 
