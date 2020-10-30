@@ -212,6 +212,12 @@ main_loop(update, draw)
 
 # Quirks
 
+## Draw order
+
+Calls to `spr()` will draw sprites with increasing depth (z-distance from the screen). Therefore, successive calls to `spr()` will place sprites behind previously drawn sprites. This may seem backwards at first, but we have a good reason for doing this. The Gameboy Advance only supports 128 sprites onscreen at a time. If you failed to properly keep track of your sprite count, and exceeded the limit, wouldn't you want the sprites further in the background to be hidden, rather than the nearer sprites?
+
+## System font default colors
+
 The overlay tile layer shares graphics memory with the system font. If you load an overlay, and find that the colors of your text now display unpredictably, this is becuause the overlay text will always, by default, use the second and third colors to appear in an overlay tilesheet as the foreground and background color. To calibrate the color of the system text, place an 8x8 pixel tile (like the one pictured below) in index zero of any overlay texture. You may set the top gray band to any arbitrary color in your tileset. Change the middle white band to the color that you want to use for the foreground color of the system text. Set the bottom black band to the background color for the system text.
 
 <p align="center">

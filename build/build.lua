@@ -192,7 +192,7 @@ function write_tile(start_x, start_y, img, map_color)
          local index = map_color(c15)
          if half then
             half = bit32.bor(half, bit32.lshift(index, 4))
-            result = result .. string.pack("<i1", half)
+            result = result .. string.pack("<I1", half)
             half = nil
          else
             half = index
@@ -240,12 +240,12 @@ function write_palette(palette, source)
    end
 
    for i = 0, id_max do
-      result = result .. string.pack("<i2", palette_out[i])
+      result = result .. string.pack("<I2", palette_out[i])
    end
 
    if id_max ~= 15 then
       for i = id_max + 1, 15 do
-         result = result .. string.pack("<i2", 0)
+         result = result .. string.pack("<I2", 0)
       end
    end
 

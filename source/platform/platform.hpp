@@ -167,11 +167,12 @@ public:
 
     void set_overlay_origin(Float x, Float y);
 
+    using FailureReason = StringBuffer<48>;
 
-    void load_sprite_texture(const char* name);
-    void load_tile0_texture(const char* name);
-    void load_tile1_texture(const char* name);
-    void load_overlay_texture(const char* name);
+    std::optional<FailureReason> load_sprite_texture(const char* name);
+    std::optional<FailureReason> load_tile0_texture(const char* name);
+    std::optional<FailureReason> load_tile1_texture(const char* name);
+    std::optional<FailureReason> load_overlay_texture(const char* name);
 
     // Sleep halts the game for an amount of time equal to some number
     // of game updates. Given that the game should be running at

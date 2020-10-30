@@ -176,24 +176,31 @@ static const struct {
           const int layer = lua_tonumber(L, 1);
           const char* filename = lua_tostring(L, 2);
 
+          std::optional<Platform::FailureReason> err;
+
           switch (static_cast<Layer>(layer)) {
           case Layer::overlay:
-              platform->load_overlay_texture(filename);
+              err = platform->load_overlay_texture(filename);
               break;
 
           case Layer::map_1:
-              platform->load_tile1_texture(filename);
+              err = platform->load_tile1_texture(filename);
               break;
 
           case Layer::map_0:
-              platform->load_tile0_texture(filename);
+              err = platform->load_tile0_texture(filename);
               break;
 
           default:
               if (layer == 4) {
-                  platform->load_sprite_texture(filename);
+                  err = platform->load_sprite_texture(filename);
               }
               break;
+          }
+
+          if (err) {
+              luaL_error(L, err->c_str());
+              return 1;
           }
 
           return 0;
@@ -429,6 +436,9 @@ static void fatal_error(const char* heading,
                         const char* error)
 {
     platform->load_overlay_texture("overlay_text_key");
+
+    platform->speaker().stop_music();
+    platform->fill_overlay(0);
 
     platform->scroll(Layer::overlay, 0, 0);
 

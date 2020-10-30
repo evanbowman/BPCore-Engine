@@ -713,7 +713,7 @@ void Platform::Screen::draw(const Sprite& spr)
 
     switch (spr.get_size()) {
     case Sprite::Size::w16_h16:
-        draw_sprite(0, 0, 8);
+        draw_sprite(0, 0, 4);
         break;
     }
 }
@@ -1035,27 +1035,23 @@ void Platform::Screen::set_contrast(Contrast c)
 }
 
 
-static bool validate_tilemap_texture_size(Platform& pfrm, size_t size)
+static u32 validate_tilemap_texture_size(Platform& pfrm, size_t size)
 {
     constexpr auto charblock_size = sizeof(ScreenBlock) * 7;
     if (size > charblock_size) {
-        error(pfrm, "tileset exceeds charblock size");
-        pfrm.fatal();
-        return false;
+        return size - charblock_size;
     }
-    return true;
+    return 0;
 }
 
 
-static bool validate_overlay_texture_size(Platform& pfrm, size_t size)
+static u32 validate_overlay_texture_size(Platform& pfrm, size_t size)
 {
     constexpr auto charblock_size = sizeof(ScreenBlock) * 8;
     if (size > charblock_size) {
-        error(pfrm, "tileset exceeds charblock size");
-        pfrm.fatal();
-        return false;
+        return size - charblock_size;
     }
-    return true;
+    return 0;
 }
 
 
@@ -1211,12 +1207,33 @@ static u16 spritesheet_source_pal[16];
 static TextureData spritesheet_file_data;
 
 
-static void push_spritesheet_texture(const TextureData& info)
+static std::optional<Platform::FailureReason>
+push_spritesheet_texture(const TextureData& info)
 {
     current_spritesheet = &info;
 
     init_palette(current_spritesheet, sprite_palette, false);
 
+    const auto obj_vram_size = 1024 * 32;
+
+    if (info.tile_data_length_ > obj_vram_size) {
+
+        const auto exceeded_bytes = info.tile_data_length_ - obj_vram_size;
+
+        Platform::FailureReason r;
+        r += "exceeded sprite vram capacity by ";
+
+        const auto bytes_per_tile = 32;
+        const auto bytes_per_sprite = bytes_per_tile * 4;
+
+        char buffer[32];
+        english__to_string(exceeded_bytes / bytes_per_sprite, buffer, 10);
+
+        r += buffer;
+        r += " tile(s).";
+
+        return r;
+    }
 
     // NOTE: There are four tile blocks, so index four points to the
     // end of the tile memory.
@@ -1231,10 +1248,13 @@ static void push_spritesheet_texture(const TextureData& info)
         auto from = Color::from_bgr_hex_555(sprite_palette[i]);
         MEM_PALETTE[i] = blend(from, c, last_fade_amt);
     }
+
+    return {};
 }
 
 
-void Platform::load_sprite_texture(const char* name)
+std::optional<Platform::FailureReason>
+Platform::load_sprite_texture(const char* name)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
@@ -1254,17 +1274,25 @@ void Platform::load_sprite_texture(const char* name)
         info.tile_data_length_ = img.size_;
         info.palette_data_length_ = 16;
 
-        push_spritesheet_texture(info);
-        return;
+        return push_spritesheet_texture(info);
     }
 
     for (auto& info : sprite_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
 
-            push_spritesheet_texture(info);
+            return push_spritesheet_texture(info);
         }
     }
+
+    FailureReason r;
+    r += "missing ";
+    r += name;
+    r += " or ";
+    r += palette_file;
+    r += ".";
+
+    return r;
 }
 
 
@@ -1272,7 +1300,8 @@ static u16 tile0_source_pal[16];
 static TextureData tile0_file_data;
 
 
-static void push_tile0_texture(const char* name, const TextureData& info)
+static std::optional<Platform::FailureReason>
+push_tile0_texture(const char* name, const TextureData& info)
 {
     current_tilesheet0 = &info;
 
@@ -1290,20 +1319,31 @@ static void push_tile0_texture(const char* name, const TextureData& info)
         MEM_BG_PALETTE[i] = blend(from, c, last_fade_amt);
     }
 
-    if (validate_tilemap_texture_size(*platform, info.tile_data_length_)) {
+    auto exceeded_bytes =
+        validate_tilemap_texture_size(*platform, info.tile_data_length_);
+
+    if (not exceeded_bytes) {
         memcpy16((void*)&MEM_SCREENBLOCKS[sbb_t0_texture][0],
                  info.tile_data_,
                  info.tile_data_length_ / 2);
+        return {};
     } else {
-        StringBuffer<45> buf = "unable to load: ";
-        buf += name;
+        Platform::FailureReason r;
+        r += "exceeded tile0 vram capacity by ";
 
-        error(*platform, buf.c_str());
+        char buffer[32];
+        english__to_string(exceeded_bytes / 32, buffer, 10);
+
+        r += buffer;
+        r += " tile(s).";
+
+        return r;
     }
 }
 
 
-void Platform::load_tile0_texture(const char* name)
+std::optional<Platform::FailureReason>
+Platform::load_tile0_texture(const char* name)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
@@ -1324,17 +1364,25 @@ void Platform::load_tile0_texture(const char* name)
         info.tile_data_length_ = img.size_;
         info.palette_data_length_ = 16;
 
-        push_tile0_texture(name, info);
-        return;
+        return push_tile0_texture(name, info);
     }
 
     for (auto& info : tile_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
 
-            push_tile0_texture(name, info);
+            return push_tile0_texture(name, info);
         }
     }
+
+    FailureReason r;
+    r += "missing ";
+    r += name;
+    r += " or ";
+    r += palette_file;
+    r += ".";
+
+    return r;
 }
 
 
@@ -1342,7 +1390,8 @@ static u16 tile1_source_pal[16];
 static TextureData tile1_file_data;
 
 
-static void push_tile1_texture(const char* name, const TextureData& info)
+static std::optional<Platform::FailureReason>
+push_tile1_texture(const char* name, const TextureData& info)
 {
     current_tilesheet1 = &info;
 
@@ -1359,20 +1408,31 @@ static void push_tile1_texture(const char* name, const TextureData& info)
         MEM_BG_PALETTE[32 + i] = blend(from, c, last_fade_amt);
     }
 
-    if (validate_tilemap_texture_size(*platform, info.tile_data_length_)) {
+    auto exceeded_bytes =
+        validate_tilemap_texture_size(*platform, info.tile_data_length_);
+
+    if (not exceeded_bytes) {
         memcpy16((void*)&MEM_SCREENBLOCKS[sbb_t1_texture][0],
                  info.tile_data_,
                  info.tile_data_length_ / 2);
+        return {};
     } else {
-        StringBuffer<45> buf = "unable to load: ";
-        buf += name;
+        Platform::FailureReason r;
+        r += "exceeded tile1 vram capacity by ";
 
-        error(*platform, buf.c_str());
+        char buffer[32];
+        english__to_string(exceeded_bytes / 32, buffer, 10);
+
+        r += buffer;
+        r += " tile(s).";
+
+        return r;
     }
 }
 
 
-void Platform::load_tile1_texture(const char* name)
+std::optional<Platform::FailureReason>
+Platform::load_tile1_texture(const char* name)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
@@ -1393,17 +1453,25 @@ void Platform::load_tile1_texture(const char* name)
         info.tile_data_length_ = img.size_;
         info.palette_data_length_ = 16;
 
-        push_tile1_texture(name, info);
-        return;
+        return push_tile1_texture(name, info);
     }
 
     for (auto& info : tile_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
 
-            push_tile1_texture(name, info);
+            return push_tile1_texture(name, info);
         }
     }
+
+    FailureReason r;
+    r += "missing ";
+    r += name;
+    r += " or ";
+    r += palette_file;
+    r += ".";
+
+    return r;
 }
 
 
@@ -2377,7 +2445,8 @@ static u16 overlay_source_pal[16];
 static TextureData overlay_file_data;
 
 
-static void push_overlay_texture(const TextureData& info)
+static std::optional<Platform::FailureReason>
+push_overlay_texture(const TextureData& info)
 {
     current_overlay_texture = &info;
 
@@ -2398,28 +2467,38 @@ static void push_overlay_texture(const TextureData& info)
     for (auto& prefix : overlay_textures) {
         if (str_cmp(prefix.name_, "overlay") == 0) {
 
-            if (not validate_overlay_texture_size(*platform, info.tile_data_length_ + prefix.tile_data_length_)) {
-                return;
+            auto consume = info.tile_data_length_ + prefix.tile_data_length_;
+            auto exceeded_bytes =
+                validate_overlay_texture_size(*platform, consume);
+
+            if (not exceeded_bytes) {
+                memcpy16((char*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0] +
+                         prefix.tile_data_length_,
+                         info.tile_data_,
+                         info.tile_data_length_ / 2);
+
+                return {};
+            } else {
+                Platform::FailureReason r;
+                r += "exceeded overlay vram capacity by ";
+
+                char buffer[32];
+                english__to_string(exceeded_bytes / 32, buffer, 10);
+
+                r += buffer;
+                r += " tile(s).";
+
+                return r;
             }
-
-            memcpy16((char*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0] +
-                     prefix.tile_data_length_,
-                     info.tile_data_,
-                     info.tile_data_length_ / 2);
-            break;
-        }
-
-    }
-
-    if (glyph_mode) {
-        for (auto& gm : ::glyph_table->obj_->mappings_) {
-            gm.reference_count_ = -1;
         }
     }
+
+    return {};
 }
 
 
-void Platform::load_overlay_texture(const char* name)
+std::optional<Platform::FailureReason>
+Platform::load_overlay_texture(const char* name)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
@@ -2440,19 +2519,26 @@ void Platform::load_overlay_texture(const char* name)
         info.tile_data_length_ = img.size_;
         info.palette_data_length_ = 16;
 
-        push_overlay_texture(info);
-        return;
+        return push_overlay_texture(info);
     }
 
     for (auto& info : overlay_textures) {
 
         if (str_cmp(name, info.name_) == 0) {
 
-            push_overlay_texture(info);
+            return push_overlay_texture(info);
         }
     }
 
-    fill_overlay(0);
+
+    FailureReason r;
+    r += "missing ";
+    r += name;
+    r += " or ";
+    r += palette_file;
+    r += ".";
+
+    return r;
 }
 
 

@@ -42,10 +42,14 @@ end
 local x = 0
 local y = 0
 
+local i = 0
+
+
 function update(dt)
 
    if btnp(0) then
       fade(0.5)
+      i = (i + 1) % 250
    elseif btnnp(0) then
       fade(0)
    end
@@ -68,7 +72,7 @@ end
 
 function draw()
    spr(0, x, y)
-   spr(0, 30, 30)
+   spr(255, 30, 30)
 end
 
 
