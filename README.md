@@ -120,6 +120,9 @@ Returns word value at address.
 * `file(name)`
 Returns a pointer,length to any file in the resource bundle. The data can then be read with the peek/peek4 functions. You cannot write to files, as they reside in ROM, and are therefore, by definition, read-only.
 
+* `next_script(name)`
+Execute script `name` when the current script runs to completion. Due to memory constraints (the GBA has limited RAM), you may need to structure your program as a series of isolated scripts. Each script is completetly independent, i.e. scripts start with a clean slate when they begin running. Therefore, Lua global variables may not be shared between lua scripts, so you will need to write any persistent data into an unused section of GBA RAM. While swapping scripts will erase any existing Lua code or Lua variables from RAM, starting a new script does not otherwise impact the state of the BPCore engine, so, for example, any tiles that you created in the current script, will be unchanged when moving to the next script. The script architecture exists purely to allow you to run Lua programs larger than the GBA's 256Kb RAM limit.
+
 * `music(source_file, offset)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. All music loops, and you may specify a microsecond offset into the music file with the `offset` parameter.
 

@@ -11,7 +11,7 @@ extern "C" {
 
 
 static Platform* platform;
-
+static std::optional<StringBuffer<48>> next_script;
 
 static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 {
@@ -428,7 +428,12 @@ static const struct {
       [](lua_State* L) -> int {
           platform->feed_watchdog();
           return 0;
-      }}
+      }},
+     {"next_script",
+      [](lua_State* L) -> int {
+          ::next_script = lua_tostring(L, 1);
+          return 0;
+      }},
 };
 
 
@@ -491,24 +496,32 @@ BPCoreEngine::BPCoreEngine(Platform& pf)
     platform->screen().fade(0.f);
     platform->screen().display();
 
-    lua_ = lua_newstate(umm_lua_alloc, nullptr);
-    lua_atpanic(lua_, &lua_panic);
+    next_script = "main.lua";
 
-    luaL_openlibs(lua_);
+    while (next_script) {
+        if (lua_) {
+            lua_close(lua_);
+        }
 
-    for (const auto& builtin : builtins) {
-        lua_pushcfunction(lua_, builtin.callback_);
-        lua_setglobal(lua_, builtin.name_);
-    }
+        lua_ = lua_newstate(umm_lua_alloc, nullptr);
+        lua_atpanic(lua_, &lua_panic);
 
-    if (auto script = pf.fs().get_file("main.lua").data_) {
-        if (luaL_loadstring(lua_, script)) {
+        luaL_openlibs(lua_);
+
+        for (const auto& builtin : builtins) {
+            lua_pushcfunction(lua_, builtin.callback_);
+            lua_setglobal(lua_, builtin.name_);
+        }
+
+        if (auto script = pf.fs().get_file(next_script->c_str()).data_) {
+            if (luaL_loadstring(lua_, script)) {
+                fatal_error("Fatal Error: ", lua_tostring(lua_, -1));
+            }
+        }
+
+        if (lua_pcall(lua_, 0, 0, 0)) {
             fatal_error("Fatal Error: ", lua_tostring(lua_, -1));
         }
-    }
-
-    if (lua_pcall(lua_, 0, 0, 0)) {
-        fatal_error("Fatal Error: ", lua_tostring(lua_, -1));
     }
 }
 
