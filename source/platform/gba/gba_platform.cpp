@@ -1071,10 +1071,33 @@ u16 Platform::get_tile(Layer layer, u16 x, u16 y)
         return MEM_SCREENBLOCKS[sbb_bg_tiles][x + y * 32];
 
     case Layer::map_0:
-        return MEM_SCREENBLOCKS[sbb_t0_tiles][x + y * 64];
+        if (x > 63 or y > 63) {
+            return 0;
+        }
+        if (x < 32 and y < 32) {
+            return MEM_SCREENBLOCKS[sbb_t0_tiles][x + y * 32];
+        } else if (y < 32) {
+            return MEM_SCREENBLOCKS[sbb_t0_tiles + 1][(x - 32) + y * 32];
+        } else if (x < 32) {
+            return MEM_SCREENBLOCKS[sbb_t0_tiles + 2][x + (y - 32) * 32];
+        } else {
+            return MEM_SCREENBLOCKS[sbb_t0_tiles + 3][(x - 32) + (y - 32) * 32];
+        }
+        break;
 
     case Layer::map_1:
-        return MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 64];
+        if (x > 63 or y > 63) {
+            return 0;
+        }
+        if (x < 32 and y < 32) {
+            return MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 32];
+        } else if (y < 32) {
+            return MEM_SCREENBLOCKS[sbb_t1_tiles + 1][(x - 32) + y * 32];
+        } else if (x < 32) {
+            return MEM_SCREENBLOCKS[sbb_t1_tiles + 2][x + (y - 32) * 32];
+        } else {
+            return MEM_SCREENBLOCKS[sbb_t1_tiles + 3][(x - 32) + (y - 32) * 32];
+        }
     }
     return 0;
 }
