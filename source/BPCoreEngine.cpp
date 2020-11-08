@@ -478,7 +478,7 @@ static int lua_panic(lua_State* L)
 }
 
 
-BPCoreEngine::BPCoreEngine(Platform& pf)
+BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
 {
     platform = &pf;
     {
