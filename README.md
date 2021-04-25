@@ -2,6 +2,8 @@
 
 This repository includes parts of the [BlindJump](https://github.com/evanbowman/blind-jump-portable) C++ engine, hacked together with a Lua interpreter, with the intention of allowing people to make gameboy games without needing to write C++ code or to use a compiler. The lua API for BPCore uses the simple APIs of fantasy consoles, like Pico8 or Tic80, as a model. In fact, many of the commands, like `spr()` and `btn()`, are almost the same.
 
+NOTE: Due to the limitations on lua code size, it would be difficult to make a large game with this framework.
+
 # Architecture
 
 For ease of use, the `build.lua` script allows you to create Gameboy Advance ROMs entirely with Lua: you only need a copy of the `build.lua` script, a copy of the `BPCoreEngine.gba` rom, and an installation of Lua 5.3!
