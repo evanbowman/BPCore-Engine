@@ -34,31 +34,38 @@ static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 }
 
 
+alignas(4) static __attribute__((section(".iwram"))) u8 cache[4000];
+
+
 static const struct {
     const char* name_;
     int (*callback_)(lua_State*);
 } builtins[] = {
     {"log",
-     [](lua_State* L) -> int {
+     [](lua_State* L) {
          info(*platform, lua_tostring(L, 1));
          return 0;
      }},
     {"connect",
-     [](lua_State* L) -> int {
+     [](lua_State* L) {
          if (platform->network_peer().is_connected()) {
              platform->network_peer().disconnect();
          }
-         platform->network_peer().connect(nullptr);
+         platform->network_peer().listen();
          lua_pushboolean(L, platform->network_peer().is_connected());
          return 1;
      }},
     {"disconnect",
-     [](lua_State* L) -> int {
+     [](lua_State* L) {
          platform->network_peer().disconnect();
          return 0;
      }},
+    {"pkt",
+     [](lua_State* L) {
+         return 0;
+     }},
     {"send",
-     [](lua_State* L) -> int {
+     [](lua_State* L) {
          char message[Platform::NetworkPeer::max_message_size];
          __builtin_memset(message + 1, 0, (sizeof message) - 1);
          message[0] = 1;
@@ -88,7 +95,7 @@ static const struct {
          return 1;
      }},
     {"recv",
-     [](lua_State* L) -> int {
+     [](lua_State* L) {
          if (auto message = platform->network_peer().poll_message()) {
              lua_pushlstring(L, (const char*)message->data_ + 1,
                              Platform::NetworkPeer::max_message_size - 1);
@@ -101,25 +108,25 @@ static const struct {
          return 1;
      }},
     {"clear",
-     [](lua_State* L) -> int {
+     [](lua_State* L) {
          platform->feed_watchdog();
          platform->network_peer().update();
          platform->screen().clear();
          return 0;
      }},
      {"display",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           platform->screen().display();
           platform->keyboard().poll();
           return 0;
       }},
      {"delta",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           lua_pushnumber(L, platform->delta_clock().reset());
           return 1;
       }},
      {"btn",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int button = lua_tonumber(L, 1);
           if (button >= static_cast<int>(Key::count)) {
               lua_pushboolean(L, false);
@@ -130,7 +137,7 @@ static const struct {
           return 1;
       }},
      {"btnp",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int button = lua_tonumber(L, 1);
           if (button >= static_cast<int>(Key::count)) {
               lua_pushboolean(L, false);
@@ -141,7 +148,7 @@ static const struct {
           return 1;
       }},
      {"btnnp",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int button = lua_tonumber(L, 1);
           if (button >= static_cast<int>(Key::count)) {
               lua_pushboolean(L, false);
@@ -152,7 +159,7 @@ static const struct {
           return 1;
       }},
      {"print",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int argc = lua_gettop(L);
           Text::OptColors c;
           if (argc > 3) {
@@ -172,7 +179,7 @@ static const struct {
           return 0;
       }},
      {"txtr",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int layer = lua_tonumber(L, 1);
           const char* filename = lua_tostring(L, 2);
 
@@ -206,7 +213,7 @@ static const struct {
           return 0;
       }},
      {"spr",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           Sprite spr;
           spr.set_texture_index(lua_tointeger(L, 1));
           spr.set_position({
@@ -240,7 +247,7 @@ static const struct {
           return 0;
       }},
      {"scroll",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int l = lua_tointeger(L, 1);
           const int x = lua_tointeger(L, 2);
           const int y = lua_tointeger(L, 3);
@@ -250,7 +257,7 @@ static const struct {
           return 0;
       }},
      {"camera",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int x = lua_tonumber(L, 1);
           const int y = lua_tonumber(L, 2);
 
@@ -265,7 +272,7 @@ static const struct {
           return 0;
       }},
      {"tile",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int argc = lua_gettop(L);
           const int l = lua_tointeger(L, 1);
           const int x = lua_tointeger(L, 2);
@@ -314,7 +321,7 @@ static const struct {
           return 0;
       }},
      {"fill",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const int l = lua_tointeger(L, 1);
           const int t = lua_tointeger(L, 2);
           switch (static_cast<Layer>(l)) {
@@ -329,57 +336,65 @@ static const struct {
           return 0;
       }},
      {"poke",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto addr = lua_tointeger(L, 1);
           const u8 val = lua_tointeger(L, 2);
           *((u8*)addr) = val;
+          char buffer[32];
+          english__to_string(addr, buffer, 10);
+          info(*platform, "poke");
+          info(*platform, buffer);
           return 0;
       }},
      {"poke4",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto addr = lua_tointeger(L, 1);
           const u32 val = lua_tointeger(L, 2);
           *((u32*)addr) = val;
           return 0;
       }},
      {"peek",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto addr = lua_tointeger(L, 1);
           lua_pushinteger(L, *((u8*)addr));
+          char buffer[32];
+          english__to_string(addr, buffer, 10);
+          info(*platform, "peek");
+          info(*platform, buffer);
           return 1;
       }},
      {"peek4",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto addr = lua_tointeger(L, 1);
           lua_pushinteger(L, *((u32*)addr));
           return 1;
       }},
      {"music",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto name = lua_tostring(L, 1);
           const auto offset = lua_tointeger(L, 2);
           platform->speaker().play_music(name, offset);
           return 0;
       }},
      {"stop_music",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           platform->speaker().stop_music();
           return 0;
       }},
      {"sound",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto name = lua_tostring(L, 1);
           const auto priority = lua_tointeger(L, 2);
           platform->speaker().play_sound(name, priority);
           return 0;
       }},
      {"sleep",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           platform->sleep(lua_tointeger(L, 1));
           return 0;
       }},
      {"file",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto name = lua_tostring(L, 1);
           auto f = platform->fs().get_file(name);
           if (f.data_) {
@@ -393,7 +408,7 @@ static const struct {
           }
       }},
      {"fade",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           const auto amount = lua_tonumber(L, 1);
           const int argc = lua_gettop(L);
 
@@ -425,12 +440,12 @@ static const struct {
           return 0;
       }},
      {"fdog",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           platform->feed_watchdog();
           return 0;
       }},
      {"next_script",
-      [](lua_State* L) -> int {
+      [](lua_State* L) {
           ::next_script = lua_tostring(L, 1);
           return 0;
       }},
@@ -512,6 +527,9 @@ BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
             lua_pushcfunction(lua_, builtin.callback_);
             lua_setglobal(lua_, builtin.name_);
         }
+
+        lua_pushinteger(lua_, (u32)cache);
+        lua_setglobal(lua_, "_CACHE");
 
         if (auto script = pf.fs().get_file(next_script->c_str()).data_) {
             if (luaL_loadstring(lua_, script)) {
