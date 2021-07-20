@@ -3353,7 +3353,7 @@ MASTER_RETRY:
         ::platform->feed_watchdog();
     }
 
-    const char* handshake = "linkv00002";
+    const char* handshake = "link__v00002";
 
     if (str_len(handshake) not_eq Platform::NetworkPeer::max_message_size) {
         ::platform->network_peer().disconnect();
