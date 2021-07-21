@@ -28,7 +28,7 @@ static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 static const int __ram_size = 8000;
 
 
-static u8 __ram[__ram_size];
+alignas(4) static u8 __ram[__ram_size];
 
 
 static const struct {
@@ -346,10 +346,20 @@ static const struct {
       }},
      {"poke4",
       [](lua_State* L) -> int {
-          const auto addr = lua_tointeger(L, 1);
+          auto addr = lua_tointeger(L, 1);
           if (addr >= (intptr_t)__ram and addr + 4 < ((intptr_t)__ram + __ram_size)) {
               const u32 val = lua_tointeger(L, 2);
               ((host_u32*)addr)->set(val);
+              return 0;
+          }  else if (addr >= 0x0E000000 and
+                     addr < (0x0E000000 + 32000)) {
+              host_u32 output;
+              output.set(lua_tointeger(L, 2));
+              // SRAM has a single-byte bus.
+              *((u8*)addr++) = ((u8*)&output)[0];
+              *((u8*)addr++) = ((u8*)&output)[1];
+              *((u8*)addr++) = ((u8*)&output)[2];
+              *((u8*)addr++) = ((u8*)&output)[3];
               return 0;
           } else {
               luaL_error(L, "out of bounds address passed to poke4");
@@ -365,8 +375,21 @@ static const struct {
       }},
      {"peek4",
       [](lua_State* L) -> int {
-          const auto addr = lua_tointeger(L, 1);
-          lua_pushinteger(L, ((host_u32*)addr)->get());
+          auto addr = lua_tointeger(L, 1);
+
+          if (UNLIKELY(addr >= 0x0E000000 and
+                       addr + 4 < (0x0E000000 + 32000))) {
+              host_u32 input;
+              // SRAM has a single-byte bus.
+              ((u8*)&input)[0] = *((u8*)addr++);
+              ((u8*)&input)[1] = *((u8*)addr++);
+              ((u8*)&input)[2] = *((u8*)addr++);
+              ((u8*)&input)[3] = *((u8*)addr++);
+              lua_pushinteger(L, input.get());
+          } else {
+              lua_pushinteger(L, ((host_u32*)addr)->get());
+          }
+
           return 1;
       }},
      {"music",
