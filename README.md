@@ -43,7 +43,7 @@ return app
 
 ```
 
-`build.lua` then creates a ROM file, by copying the compiled code in the BPCoreEngine.gba ROM, and appending a new section to the ROM, containing all of the resource files. The engine, upon startup, scans through the appropriate memory sections in the GBA cartridge address space, and finds the resource bundle. BPCore then loads the `main.lua` script from the application bundle, and turns over control to Lua (more or less, the engine does still process interrupts).
+`build.lua` then creates a ROM file, by copying the compiled code in the BPCoreEngine.gba ROM, and appending a new section to the ROM, containing all of the resource files. The engine, upon startup, loads the address of the end of the ROM (provided by the linker), and finds the resource bundle. BPCore then loads the `main.lua` script from the application bundle, and turns over control to Lua (more or less, the engine does still process interrupts).
 
 # API
 
@@ -130,7 +130,7 @@ Play mono 16kHz signed 8bit PCM audio from the given source file string. All mus
 Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike the music, sounds do not loop. The engine can only render four audio channels at a time--3 for sound effects, and one for the music. If you already have three sounds playing, the sound effect with the lowest priority will be evicted if the sound that you are requesting has a higher priority.
 
 * `next_script(name)`
-Execute script `name` when the current script runs to completion. Due to memory constraints (the GBA has limited RAM), you may need to structure your program as a series of isolated scripts. Each script is completetly independent, i.e. scripts start with a clean slate when they begin running. Therefore, Lua global variables may not be shared between lua scripts, so you will need to write any persistent data into an unused section of GBA RAM. While swapping scripts will erase any existing Lua code or Lua variables from RAM, starting a new script does not otherwise impact the state of the BPCore engine, so, for example, any tiles that you created in the current script, will be unchanged when moving to the next script. The script architecture exists purely to allow you to run Lua programs larger than the GBA's 256Kb RAM limit. If you have any state that you need to preserve between scripts, you may use the poke function to stash variables in the `_IRAM` memory section (see Memory Constraints below).
+Execute script `name` when the current script runs to completion. Due to memory constraints (the GBA has limited RAM), you may need to structure your program as a series of isolated scripts. Each script is completetly independent, i.e. scripts start with a clean slate when they begin running. Therefore, Lua global variables may not be shared between lua scripts, so you will need to write any persistent data into an unused section of GBA RAM. While swapping scripts will erase any existing Lua code or Lua variables from RAM, starting a new script does not otherwise impact the state of the BPCore engine, so, for example, any tiles that you created in the current script, will be unchanged when moving to the next script. The script architecture exists purely to allow you to run Lua programs larger than the GBA's 256Kb RAM limit. If you have any state that you need to preserve between scripts, you may use the poke function to stash variables in the `_IRAM` memory section (see Memory Regions below).
 
 ``` lua
 -- main.lua
@@ -151,7 +151,18 @@ Feed the engine's watchdog counter. You do not need to call this function if you
 
 # Memory Constraints
 
-The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). Most of the 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The engine also owns all of the GBA's VRAM and memory-mapped registers, so you should not write to any of these addresses. The engine does expose an eight-thousand byte chunk of IWRAM to user programs, in the `_IRAM` global variable, which may be passed to the `peek()`/`poke()` functions (see above).
+The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). Most of the 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data.
+
+# Memory Regions
+
+In addition to the memory used for Lua code and data, the engine provides access to a few other memory regions within the gba hardware, accessible via `peek()`, `peek4()`, `poke()`, and `poke4()`.
+
+* `_IRAM`
+An eight-thousand byte buffer of the fastest on-chip memory.
+
+* `_SRAM`
+A special memory region dedicated to save data. Writes can be quite slow, but the data will persist across restarts. Thirty-two kilobytes available. Under the hood, the engine restructures SRAM writes for you, so you do not need to worry about the single byte data bus (i.e. you may safely use poke4() with SRAM).
+
 
 # Example
 
