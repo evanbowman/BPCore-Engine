@@ -332,6 +332,13 @@ static const struct {
               const u8 val = lua_tointeger(L, 2);
               *((u8*)addr) = val;
               return 0;
+          } else if (addr >= 0x0E000000 and
+                     // Realistically, unless you use a flashcart, you will not
+                     // have more than 32kb of sram to work with.
+                     addr < (0x0E000000 + 32000)) {
+              const u8 val = lua_tointeger(L, 2);
+              *((u8*)addr) = val;
+              return 0;
           } else {
               luaL_error(L, "out of bounds address passed to poke");
               return 1;
@@ -523,6 +530,8 @@ BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
 
         lua_pushinteger(lua_, (intptr_t)__ram);
         lua_setglobal(lua_, "_IRAM");
+        lua_pushinteger(lua_, (intptr_t)(byte*)0x0E000000);
+        lua_setglobal(lua_, "_SRAM");
 
         if (auto script = pf.fs().get_file(next_script->c_str()).data_) {
             if (luaL_loadstring(lua_, script)) {
