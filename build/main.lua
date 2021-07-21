@@ -79,4 +79,9 @@ end
 print(tostring(collectgarbage("count") * 1024), 3, 5)
 
 
+poke4(_IRAM, 42)
+
+print(tostring(peek4(_IRAM)), 3, 6)
+
+
 main_loop(update, draw)

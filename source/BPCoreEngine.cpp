@@ -3,6 +3,7 @@
 #include "graphics/overlay.hpp"
 #include "localization.hpp"
 #include "string.hpp"
+#include "number/endian.hpp"
 
 extern "C" {
 #include "lua/lualib.h"
@@ -22,6 +23,12 @@ static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
         return umm_realloc(ptr, nsize);
     }
 }
+
+
+static const int __ram_size = 8000;
+
+
+static u8 __ram[__ram_size];
 
 
 static const struct {
@@ -321,16 +328,27 @@ static const struct {
      {"poke",
       [](lua_State* L) -> int {
           const auto addr = lua_tointeger(L, 1);
-          const u8 val = lua_tointeger(L, 2);
-          *((u8*)addr) = val;
-          return 0;
+          if (addr >= (intptr_t)__ram and addr < (intptr_t)__ram + __ram_size) {
+              const u8 val = lua_tointeger(L, 2);
+              *((u8*)addr) = val;
+              return 0;
+          } else {
+              luaL_error(L, "out of bounds address passed to poke");
+              return 1;
+          }
       }},
      {"poke4",
       [](lua_State* L) -> int {
           const auto addr = lua_tointeger(L, 1);
-          const u32 val = lua_tointeger(L, 2);
-          *((u32*)addr) = val;
-          return 0;
+          if (addr >= (intptr_t)__ram and addr + 4 < ((intptr_t)__ram + __ram_size)) {
+              const u32 val = lua_tointeger(L, 2);
+              ((host_u32*)addr)->set(val);
+              return 0;
+          } else {
+              luaL_error(L, "out of bounds address passed to poke4");
+              return 1;
+          }
+
       }},
      {"peek",
       [](lua_State* L) -> int {
@@ -341,7 +359,7 @@ static const struct {
      {"peek4",
       [](lua_State* L) -> int {
           const auto addr = lua_tointeger(L, 1);
-          lua_pushinteger(L, *((u32*)addr));
+          lua_pushinteger(L, ((host_u32*)addr)->get());
           return 1;
       }},
      {"music",
@@ -502,6 +520,9 @@ BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
             lua_pushcfunction(lua_, builtin.callback_);
             lua_setglobal(lua_, builtin.name_);
         }
+
+        lua_pushinteger(lua_, (intptr_t)__ram);
+        lua_setglobal(lua_, "_IRAM");
 
         if (auto script = pf.fs().get_file(next_script->c_str()).data_) {
             if (luaL_loadstring(lua_, script)) {
