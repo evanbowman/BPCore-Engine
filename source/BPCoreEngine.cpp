@@ -19,16 +19,6 @@ static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
         umm_free(ptr);
         return nullptr;
     } else {
-        char buffer[32];
-        english__to_string(nsize, buffer, 10);
-
-        StringBuffer<64> text;
-        text = "realloc ";
-        text += buffer;
-        text += " bytes";
-
-        info(*platform, text.c_str());
-
         return umm_realloc(ptr, nsize);
     }
 }
