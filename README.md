@@ -4,8 +4,6 @@
 
 This repository includes parts of the [BlindJump](https://github.com/evanbowman/blind-jump-portable) C++ engine, hacked together with a Lua interpreter, with the intention of allowing people to make gameboy games without needing to write C++ code or to use a compiler. The lua API for BPCore uses the simple APIs of fantasy consoles, like Pico8 or Tic80, as a model. In fact, many of the commands, like `spr()` and `btn()`, are almost the same.
 
-NOTE: Due to the limitations on lua code size, it would be difficult to make a large game with this framework.
-NOTE2: The project isn't really feature-complete. But maybe you'll find it useful as an example of embedding Lua in a gba project. Generally, it's important to keep most performance-critical stuff in C++ or assembly, and use Lua for lightweight scripting. Realistically, you cannot make a game of any complexity if everything's written in Lua. Furthermore, Lua code takes up a lot of space in Ram, so it's important to organize any game developed in Lua into a series of completely self-contained modules, such that the entire Lua state can be dumped and loaded with new code, otherwise, there just isn't enough ram to store all the bytecode for a large program written in Lua.
 
 # Architecture
 
@@ -125,21 +123,35 @@ Returns word value at address.
 * `file(name)`
 Returns a pointer,length to any file in the resource bundle. The data can then be read with the peek/peek4 functions. You cannot write to files, as they reside in ROM, and are therefore, by definition, read-only.
 
-* `next_script(name)`
-Execute script `name` when the current script runs to completion. Due to memory constraints (the GBA has limited RAM), you may need to structure your program as a series of isolated scripts. Each script is completetly independent, i.e. scripts start with a clean slate when they begin running. Therefore, Lua global variables may not be shared between lua scripts, so you will need to write any persistent data into an unused section of GBA RAM. While swapping scripts will erase any existing Lua code or Lua variables from RAM, starting a new script does not otherwise impact the state of the BPCore engine, so, for example, any tiles that you created in the current script, will be unchanged when moving to the next script. The script architecture exists purely to allow you to run Lua programs larger than the GBA's 256Kb RAM limit.
-
 * `music(source_file, offset)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. All music loops, and you may specify a microsecond offset into the music file with the `offset` parameter.
 
 * `sound(source_file, priority)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike the music, sounds do not loop. The engine can only render four audio channels at a time--3 for sound effects, and one for the music. If you already have three sounds playing, the sound effect with the lowest priority will be evicted if the sound that you are requesting has a higher priority.
 
+* `next_script(name)`
+Execute script `name` when the current script runs to completion. Due to memory constraints (the GBA has limited RAM), you may need to structure your program as a series of isolated scripts. Each script is completetly independent, i.e. scripts start with a clean slate when they begin running. Therefore, Lua global variables may not be shared between lua scripts, so you will need to write any persistent data into an unused section of GBA RAM. While swapping scripts will erase any existing Lua code or Lua variables from RAM, starting a new script does not otherwise impact the state of the BPCore engine, so, for example, any tiles that you created in the current script, will be unchanged when moving to the next script. The script architecture exists purely to allow you to run Lua programs larger than the GBA's 256Kb RAM limit. If you have any state that you need to preserve between scripts, you may use the poke function to stash variables in the `_IRAM` memory section (see Memory Constraints below).
+
+``` lua
+-- main.lua
+local a = 5000
+local b = 2000
+
+-- lots of code...
+
+poke4(_IRAM, a)
+poke4(_IRAM + 4, b)
+
+next_script("other_file.lua")
+
+```
+
 * `fdog()`
 Feed the engine's watchdog counter. You do not need to call this function if you are already calling the clear function. But if the engine does not receive `clear()` and `display()` calls for more than ten seconds, it assumes that a critical error occurred, and reloads the ROM. If you are running a complicated piece of code, perhaps when loading a level, you may want to feed the watchdog every so often. Or, if your program is not graphically intensive, and only rarely refreshes the screen, you may need to manually feed the watchdog.
 
 # Memory Constraints
 
-The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). The 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The GBA also has VRAM, for loading tilesets and spritesheets. The amount of VRAM allowed varies by tile layer, and will soon be documented here.
+The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). Most of the 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data. The engine also owns all of the GBA's VRAM and memory-mapped registers, so you should not write to any of these addresses. The engine does expose an eight-thousand byte chunk of IWRAM to user programs, in the `_IRAM` global variable, which may be passed to the `peek()`/`poke()` functions (see above).
 
 # Example
 
