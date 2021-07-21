@@ -43,7 +43,7 @@ return app
 
 ```
 
-`build.lua` then creates a ROM file, by copying the compiled code in the BPCoreEngine.gba ROM, and appending a new section to the ROM, containing all of the resource files. The engine, upon startup, scans through the appropriate memory sections in the GBA cartridge address space, and finds the resource bundle. BPCore then loads the `main.lua` script from the application bundle, and turns over control to Lua (more or less, the engine does still process interrupts).
+`build.lua` then creates a ROM file, by copying the compiled code in the BPCoreEngine.gba ROM, and appending a new section to the ROM, containing all of the resource files. The engine, upon startup, loads the address of the end of the ROM (provided by the linker), and finds the resource bundle. BPCore then loads the `main.lua` script from the application bundle, and turns over control to Lua (more or less, the engine does still process interrupts).
 
 # API
 
