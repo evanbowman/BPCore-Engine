@@ -3,9 +3,12 @@
 #include "platform/platform.hpp"
 
 
+extern char __rom_end__;
+
+
 static const char* find_files(Platform& pfrm)
 {
-    const char* search_start = (char*)0x08000000;
+    const char* search_start = &__rom_end__;
     const char* search_end = (char*)0x0a000000;
 
     const char* prefix_str = "core";
