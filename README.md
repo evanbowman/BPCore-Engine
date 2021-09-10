@@ -241,6 +241,11 @@ main_loop(update, draw)
 
 ```
 
+# Example Projects
+
+* [Meteorain, by Dr. Ludos](https://github.com/drludos/meteorain-gba)
+
+
 # Quirks
 
 ## Draw order
