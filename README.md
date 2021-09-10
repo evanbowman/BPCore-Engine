@@ -5,6 +5,16 @@
 This repository includes parts of the [BlindJump](https://github.com/evanbowman/blind-jump-portable) C++ engine, hacked together with a Lua interpreter, with the intention of allowing people to make gameboy games without needing to write C++ code or to use a compiler. The lua API for BPCore uses the simple APIs of fantasy consoles, like Pico8 or Tic80, as a model. In fact, many of the commands, like `spr()` and `btn()`, are almost the same.
 
 
+# Contents
+<!--ts-->
+   * [Contents](#contents)
+   * [Architecture](#architecture)
+   * [API](#api)
+   * [Memory](#memory)
+<!--te-->
+
+
+
 # Architecture
 
 For ease of use, the `build.lua` script allows you to create Gameboy Advance ROMs entirely with Lua: you only need a copy of the `build.lua` script, a copy of the `BPCoreEngine.gba` rom, and an installation of Lua 5.3!
@@ -149,11 +159,13 @@ next_script("other_file.lua")
 * `fdog()`
 Feed the engine's watchdog counter. You do not need to call this function if you are already calling the clear function. But if the engine does not receive `clear()` and `display()` calls for more than ten seconds, it assumes that a critical error occurred, and reloads the ROM. If you are running a complicated piece of code, perhaps when loading a level, you may want to feed the watchdog every so often. Or, if your program is not graphically intensive, and only rarely refreshes the screen, you may need to manually feed the watchdog.
 
-# Memory Constraints
+# Memory
+
+## Memory Constraints
 
 The Gameboy Advance has two memory sections: a small and fast internal work ram (IWRAM), and a much larger block of slightly slower external work ram (EWRAM). Most of the 32kB IWRAM is currently reserved for the engine, leaving 256kB for Lua code and data.
 
-# Memory Regions
+## Memory Regions
 
 In addition to the memory used for Lua code and data, the engine provides access to a few other memory regions within the gba hardware, accessible via `peek()`, `peek4()`, `poke()`, and `poke4()`.
 
