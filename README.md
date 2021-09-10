@@ -74,11 +74,7 @@ To load data from the a bundled file into VRAM, use the `txtr()` function, with 
 
 ## Function Reference
 
-* `sleep(frames)`
-Sleep the game for N frames.
-
-* `delta()`
-Returns time since the last delta call in microseconds. Because games written in Lua may push the Gameboy CPU to its limits, games may not run at a steady framerate. You can either carefully fine-tune your game to run at a specific framerate, or, scale game updates based on the frame delta.
+### Button Presses
 
 * `btn(num)`
 Returns true if the button associated with `num` is pressed. Button ids: A-0, B-1, start-2, select-3, left-4, right-5, up-6, down-7, lbumper-8, rbumper-9.
@@ -88,6 +84,8 @@ Returns true if the button associated with `num` transitioned from unpressed to 
 
 * `btnnp(num)`
 Returns true if the button associated with `num` transitioned from pressed to unpressed.
+
+### Graphics
 
 * `print(string, x, y, [foreground color hex], [background color hex])`
 Render text to the overlay tile layer, using the system font. Supports Utf-8, although the engine does not include the whole universe of unicode glyphs, for practical reasons. BPCore ships with english alphanumeric characters, accented characters for Spanish and French, a selection of Japanese Katakana, the Russian alphabet, and a sample of 2500 of the most common Chinese characters. By default, the string will use color indices 2 and 3 in the overlay layer's palette, but you can also use custom color ids. Note that x and y refer to tile layer coordinates in the overlay, not absolute screen pixels offsets. NOTE: Rendering text requires copying glyps into VRAM. The engine will use the first 80 tile slots in the overlay texture layer's ram for mapping glyphs into memory. You cannot display more than 80 unique text characters onscreen at a time.
@@ -119,6 +117,8 @@ Clear all sprites from the screen. Should be called once per frame. `clear()` al
 * `display()`
 Show any recent `spr()` and `tile()` calls.
 
+### RAM Read/Write
+
 * `poke(address, byte)`
 Set byte at a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
 
@@ -146,11 +146,15 @@ print(memget(ptr, 10), 1, 1) -- print the first 10 chars of this very script.
 print(string.char(peek(ptr + 3)), 1, 3) -- print the fourth byte of this file
 ```
 
+### Sound
+
 * `music(source_file, offset)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. All music loops, and you may specify a microsecond offset into the music file with the `offset` parameter.
 
 * `sound(source_file, priority)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. Unlike the music, sounds do not loop. The engine can only render four audio channels at a time--3 for sound effects, and one for the music. If you already have three sounds playing, the sound effect with the lowest priority will be evicted if the sound that you are requesting has a higher priority.
+
+### Program Structure
 
 * `next_script(name)`
 Execute script `name` when the current script runs to completion. Due to memory constraints (the GBA has limited RAM), you may need to structure your program as a series of isolated scripts. Each script is completetly independent, i.e. scripts start with a clean slate when they begin running. Therefore, Lua global variables may not be shared between lua scripts, so you will need to write any persistent data into an unused section of GBA RAM. While swapping scripts will erase any existing Lua code or Lua variables from RAM, starting a new script does not otherwise impact the state of the BPCore engine, so, for example, any tiles that you created in the current script, will be unchanged when moving to the next script. The script architecture exists purely to allow you to run Lua programs larger than the GBA's 256Kb RAM limit. If you have any state that you need to preserve between scripts, you may use the poke function to stash variables in the `_IRAM` memory section (see Memory Regions below).
@@ -168,6 +172,14 @@ poke4(_IRAM + 4, b)
 next_script("other_file.lua")
 
 ```
+
+### System
+
+* `sleep(frames)`
+Sleep the game for N frames.
+
+* `delta()`
+Returns time since the last delta call in microseconds. Because games written in Lua may push the Gameboy CPU to its limits, games may not run at a steady framerate. You can either carefully fine-tune your game to run at a specific framerate, or, scale game updates based on the frame delta.
 
 * `fdog()`
 Feed the engine's watchdog counter. You do not need to call this function if you are already calling the clear function. But if the engine does not receive `clear()` and `display()` calls for more than ten seconds, it assumes that a critical error occurred, and reloads the ROM. If you are running a complicated piece of code, perhaps when loading a level, you may want to feed the watchdog every so often. Or, if your program is not graphically intensive, and only rarely refreshes the screen, you may need to manually feed the watchdog.
