@@ -3,13 +3,13 @@
 
 @=======================================================================
 @
-@	charset1, 9512x8@4, 
+@	charset1, 9520x8@4, 
 @	Transparent color : FF,00,FF
 @	+ palette 256 entries, not compressed
-@	+ 1189 tiles not compressed
-@	Total size: 512 + 38048 = 38560
+@	+ 1190 tiles not compressed
+@	Total size: 512 + 38080 = 38592
 @
-@	Time-stamp: 2021-09-10, 11:54:57
+@	Time-stamp: 2021-09-10, 12:51:45
 @	Exported by Cearn's GBA Image Transmogrifier, v0.8.16
 @	( http://www.coranac.com/projects/#grit )
 @
@@ -17,7 +17,7 @@
 
 	.section .rodata
 	.align	2
-	.global charset1Tiles		@ 38048 unsigned chars
+	.global charset1Tiles		@ 38080 unsigned chars
 	.hidden charset1Tiles
 charset1Tiles:
 	.word 0x00000002,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000,0x00000000
@@ -1357,6 +1357,7 @@ charset1Tiles:
 	.word 0x21211112,0x22121222,0x21111111,0x22222112,0x22111121,0x22122222,0x22211222,0x22222222
 	.word 0x22121212,0x21111111,0x22121212,0x21211121,0x22221222,0x21111111,0x22221222,0x22222222
 	.word 0x22212112,0x21112221,0x22221111,0x22122121,0x22122121,0x21212121,0x21221121,0x22222222
+	.word 0x22222222,0x22222222,0x22222222,0x22222222,0x22222222,0x22222122,0x22221212,0x22222122
 
 	.section .rodata
 	.align	2

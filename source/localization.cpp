@@ -389,6 +389,10 @@ standard_texture_map(const utf8::Codepoint& cp)
         // NOTE: this lookup table was generated from a python script. I
         // certainly did not have the patience to type all of this out by hand.
         switch (cp) {
+        case UTF8_GETCHR(u8"？"): return 95;
+        case UTF8_GETCHR(u8"”"): return 65;
+        case UTF8_GETCHR(u8"“"): return 65;
+        case UTF8_GETCHR(u8"，"): return 38;
         case UTF8_GETCHR(u8"届"): return 187;
         case UTF8_GETCHR(u8"俊"): return 188;
         case UTF8_GETCHR(u8"垫"): return 189;
@@ -2890,6 +2894,7 @@ standard_texture_map(const utf8::Codepoint& cp)
         case UTF8_GETCHR(u8"考"): return 2685;
         case UTF8_GETCHR(u8"举"): return 2686;
         case UTF8_GETCHR(u8"欣"): return 2687;
+        case UTF8_GETCHR(u8"。"): return 2688;
         }
         return std::nullopt;
     }();
