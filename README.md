@@ -143,7 +143,7 @@ Returns a pointer,length to any file in the resource bundle. The data can then b
 ``` lua
 ptr, len = file("main.lua")
 print(memget(ptr, 10), 1, 1) -- print the first 10 chars of this very script.
-print(string.char(peek(ptr + 3))) -- print the fourth byte of this file
+print(string.char(peek(ptr + 3)), 1, 3) -- print the fourth byte of this file
 ```
 
 * `music(source_file, offset)`
