@@ -11,6 +11,7 @@ This repository includes parts of the [BlindJump](https://github.com/evanbowman/
    * [Architecture](#architecture)
    * [API](#api)
    * [Memory](#memory)
+   * [Examples](#examples)
 <!--te-->
 
 
@@ -176,8 +177,9 @@ An eight-thousand byte buffer of the fastest on-chip memory.
 A special memory region dedicated to save data. Writes can be quite slow, but the data will persist across restarts. Thirty-two kilobytes available. Under the hood, the engine restructures SRAM writes for you, so you do not need to worry about the single byte data bus (i.e. you may safely use poke4() with SRAM).
 
 
-# Example
+# Examples
 
+## A tiny demo
 ``` Lua
 
 -- play some music from a 16 kHz signed 8-bit pcm wave file
@@ -253,7 +255,7 @@ main_loop(update, draw)
 
 ```
 
-# Example Projects
+## Example Projects
 
 * [Meteorain, by Dr. Ludos](https://github.com/drludos/meteorain-gba)
 
