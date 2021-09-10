@@ -168,6 +168,11 @@ static const struct {
                     }, c);
           return 0;
       }},
+     {"syscall",
+      [](lua_State* L) -> int {
+          lua_pushboolean(L, false);
+          return 1;
+      }},
      {"txtr",
       [](lua_State* L) -> int {
           const int layer = lua_tonumber(L, 1);
@@ -596,7 +601,6 @@ BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
         platform->screen().clear();
         platform->enable_glyph_mode(true);
         platform->screen().fade(1.f);
-        Text loading_text(pf, "loading...", {1, 18});
         platform->screen().display();
         if (not pf.fs().init(pf)) {
             fatal_error("Fatal Error:",
