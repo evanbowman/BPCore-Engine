@@ -392,6 +392,79 @@ static const struct {
 
           return 1;
       }},
+     {"memput",
+      [](lua_State* L) -> int {
+          size_t len;
+          auto src = lua_tolstring(L, 2, &len);
+          auto dest_addr = lua_tointeger(L, 1);
+
+          if (len == 0) {
+              return 0;
+          }
+
+          if (dest_addr >= (intptr_t)__ram and
+              (int)(dest_addr + len) < (intptr_t)__ram + __ram_size) {
+
+              memcpy((void*)dest_addr, src, len);
+              return 0;
+
+          } else if (dest_addr >= 0x0E000000 and
+                     dest_addr < (0x0E000000 + 32000)) {
+              // SRAM write
+              for (u32 i = 0; i < len; ++i) {
+                  *((u8*)dest_addr++) = src[i];
+              }
+              return 0;
+          } else {
+              luaL_error(L, "out of bounds address passed to memwrite");
+              return 1;
+          }
+
+          return 0;
+      }},
+     {"memget",
+      [](lua_State* L) -> int {
+          auto src = lua_tointeger(L, 1);
+          const auto count = lua_tointeger(L, 2);
+
+          if (src >= 0x0E000000 and
+              src < (0x0E000000 + 32000)) {
+
+              // SRAM read. We cannot trust lua_pushlstring to load the memory
+              // correctly, because lua doesn't know that the SRAM port has an
+              // 8-bit bus. Copy the data manually, byte-by-byte.
+
+              u8 local_buffer[255];
+
+              u8* dest = local_buffer;
+
+              if ((sizeof local_buffer) < (u32)count) {
+                  dest = (u8*)umm_malloc(count);
+              }
+
+              if (dest == nullptr) {
+                  luaL_error(L, "not enough memory for memget");
+                  return 1;
+              }
+
+              for (int i = 0; i < count; ++i) {
+                  dest[i] = *((u8*)src++);
+              }
+
+              lua_pushlstring(L, (const char*)dest, count);
+
+              if (dest not_eq local_buffer) {
+                  umm_free(dest);
+              }
+
+              return 1;
+          } else {
+              lua_pushlstring(L,
+                              (const char*)src,
+                              count);
+              return 1;
+          }
+      }},
      {"music",
       [](lua_State* L) -> int {
           const auto name = lua_tostring(L, 1);

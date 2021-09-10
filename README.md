@@ -120,19 +120,31 @@ Clear all sprites from the screen. Should be called once per frame. `clear()` al
 Show any recent `spr()` and `tile()` calls.
 
 * `poke(address, byte)`
-Set byte at address.
+Set byte at a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
 
 * `poke4(address, word)`
-Set word at address.
+Set word at a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
 
 * `peek(address)`
-Returns byte value at address.
+Returns byte value at any address.
 
 * `peek4(address)`
-Returns word value at address.
+Returns word value at any address.
+
+* `memput(address, string)`
+Copy contents of string to a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
+
+* `memget(address, count)`
+Load a string of count bytes starting from an address.
 
 * `file(name)`
 Returns a pointer,length to any file in the resource bundle. The data can then be read with the peek/peek4 functions. You cannot write to files, as they reside in ROM, and are therefore, by definition, read-only.
+
+``` lua
+ptr, len = file("main.lua")
+print(memget(ptr, 10), 1, 1) -- print the first 10 chars of this very script.
+print(string.char(peek(ptr + 3))) -- print the fourth byte of this file
+```
 
 * `music(source_file, offset)`
 Play mono 16kHz signed 8bit PCM audio from the given source file string. All music loops, and you may specify a microsecond offset into the music file with the `offset` parameter.
