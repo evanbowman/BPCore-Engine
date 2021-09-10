@@ -2623,8 +2623,38 @@ TileDesc Platform::map_glyph(const utf8::Codepoint& glyph,
         return bad_glyph;
     }
 
+    // NOTE: The linker or some other part of the toolchain seems to have
+    // trouble with large image file sizes, because when I try to include a
+    // single gigantic charset file in the project, I end up with garbage
+    // data. I believe that I've narrowed it down to some part of the build
+    // toolchain, because when I simply use a truncated charset file, everything
+    // works fine. A really bizzare issue.
+
+    const int binsize = (12000 / 8);
+    const int bin = mapping_info->offset_ / (12000 / 8);
+    int adjusted_offset = mapping_info->offset_;
+    if (bin > 0) {
+        adjusted_offset -= binsize * bin;
+        adjusted_offset += 1 * bin; // +1 for the font index tile. FIXME: in
+                                    // future versions, the script that
+                                    // generates font tile mappings should be
+                                    // responsible for adding a +1 offset for
+                                    // each charset bin.
+    }
+
+    char buf[15];
+
+    StringBuffer<100> charset_name = "charset";
+    if (bin == 0) {
+        charset_name = "charset0";
+    } else {
+        english__to_string(bin, buf, 10);
+        charset_name += buf;
+    }
+
+
     for (auto& info : overlay_textures) {
-        if (str_cmp(mapping_info->texture_name_, info.name_) == 0) {
+        if (str_cmp(charset_name.c_str(), info.name_) == 0) {
             for (TileDesc t = 0; t < glyph_mapping_count; ++t) {
                 auto& gm = ::glyph_table->obj_->mappings_[t];
                 if (not gm.valid()) {
@@ -2651,10 +2681,14 @@ TileDesc Platform::map_glyph(const utf8::Codepoint& glyph,
                     const auto bg_color = ((u8*)info.tile_data_)[0] & 0x0f;
 
                     u8 buffer[tile_size] = {0};
+
+
+                    auto k_src = info.tile_data_ +
+                        (adjusted_offset * tile_size) /
+                        sizeof(decltype(info.tile_data_));
+
                     memcpy16(buffer,
-                             info.tile_data_ +
-                                 (mapping_info->offset_ * tile_size) /
-                                     sizeof(decltype(info.tile_data_)),
+                             k_src,
                              tile_size / 2);
 
                     for (int i = 0; i < tile_size; ++i) {

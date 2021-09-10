@@ -2,6 +2,79 @@
 #include "platform/platform.hpp"
 
 
+
+class str_const {
+private:
+    const char* const p_;
+    const size_t sz_;
+
+public:
+    template <size_t N>
+    constexpr str_const(const char (&a)[N]) : p_(a), sz_(N - 1)
+    {
+    }
+
+    constexpr char operator[](std::size_t n)
+    {
+        return n < sz_ ? p_[n] : '0';
+    }
+};
+
+
+#ifndef __BYTE_ORDER__
+#error "byte order must be defined"
+#endif
+
+
+// FIXME: assumes little endian? Does it matter though, which way we order
+// stuff, as long as it's consistent? Actually it does matter, considering
+// that we're byte-swapping stuff in unicode.hpp
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#error "TODO: fix the utf-8 decoding (below) for big endian"
+#endif
+
+
+// Needs to be a macro because there's no way to pass a str_const as a
+// constexpr parameter. Converts the first utf-8 codepoint in a string to a
+// 32-bit integer, for use in a giant switch statement (below).
+#define UTF8_GETCHR(_STR_)                                                     \
+    []() -> utf8::Codepoint {                                                  \
+        if constexpr ((str_const(_STR_)[0] & 0x80) == 0) {                     \
+            return str_const(_STR_)[0];                                        \
+        } else if constexpr ((str_const(_STR_)[0] & 0xf0) == 0xC0 ||           \
+                             (str_const(_STR_)[0] & 0xf0) == 0xD0) {           \
+            return (u32)(u8)str_const(_STR_)[0] |                              \
+                   (((u32)(u8)str_const(_STR_)[1]) << 8);                      \
+        } else if constexpr ((str_const(_STR_)[0] & 0xf0) == 0xE0) {           \
+            return (u32)(u8)str_const(_STR_)[0] |                              \
+                   (((u32)(u8)str_const(_STR_)[1]) << 8) |                     \
+                   ((u32)(u8)str_const(_STR_)[2] << 16);                       \
+        } else if constexpr ((str_const(_STR_)[0] & 0xf0) == 0xF0) {           \
+            return (u32)(u8)str_const(_STR_)[0] |                              \
+                   ((u32)(u8)str_const(_STR_)[1] << 8) |                       \
+                   ((u32)(u8)str_const(_STR_)[2] << 16) |                      \
+                   ((u32)(u8)str_const(_STR_)[3] << 24);                       \
+        } else {                                                               \
+            return 0;                                                          \
+        }                                                                      \
+    }()
+
+
+template <u32 B, bool C> constexpr void my_assert()
+{
+    static_assert(C, "oh no");
+}
+
+#define UTF8_TESTCHR(_STR_)                                                    \
+    []() -> utf8::Codepoint {                                                  \
+        my_assert<(u32)(u8)str_const(_STR_)[0], false>();                      \
+        return 0;                                                              \
+    }()
+
+
+
+
+
 // Each language should define a texture mapping, which tells the rendering code
 // where in the texture data to look for the glyph corresponding to a given utf8
 // codepoint. Keep in mind, that on some platforms, like the Gameboy Advance,
@@ -10,388 +83,2815 @@
 std::optional<Platform::TextureMapping>
 standard_texture_map(const utf8::Codepoint& cp)
 {
+    // clang-format off
     auto mapping = [&]() -> std::optional<u16> {
+        // First, try a lookup for the base ascii charset. We want to do a
+        // fast lookup for english chars, before hitting the slow path for
+        // full unicode lookup.
         switch (cp) {
-        case '0':
-            return 1;
-        case '1':
-            return 2;
-        case '2':
-            return 3;
-        case '3':
-            return 4;
-        case '4':
-            return 5;
-        case '5':
-            return 6;
-        case '6':
-            return 7;
-        case '7':
-            return 8;
-        case '8':
-            return 9;
-        case '9':
-            return 10;
-        case 'a':
-            return 11;
-        case 'b':
-            return 12;
-        case 'c':
-            return 13;
-        case 'd':
-            return 14;
-        case 'e':
-            return 15;
-        case 'f':
-            return 16;
-        case 'g':
-            return 17;
-        case 'h':
-            return 18;
-        case 'i':
-            return 19;
-        case 'j':
-            return 20;
-        case 'k':
-            return 21;
-        case 'l':
-            return 22;
-        case 'm':
-            return 23;
-        case 'n':
-            return 24;
-        case 'o':
-            return 25;
-        case 'p':
-            return 26;
-        case 'q':
-            return 27;
-        case 'r':
-            return 28;
-        case 's':
-            return 29;
-        case 't':
-            return 30;
-        case 'u':
-            return 31;
-        case 'v':
-            return 32;
-        case 'w':
-            return 33;
-        case 'x':
-            return 34;
-        case 'y':
-            return 35;
-        case 'z':
-            return 36;
-        case '.':
-            return 37;
-        case ',':
-            return 38;
-        case 'A':
-            return 39;
-        case 'B':
-            return 40;
-        case 'C':
-            return 41;
-        case 'D':
-            return 42;
-        case 'E':
-            return 43;
-        case 'F':
-            return 44;
-        case 'G':
-            return 45;
-        case 'H':
-            return 46;
-        case 'I':
-            return 47;
-        case 'J':
-            return 48;
-        case 'K':
-            return 49;
-        case 'L':
-            return 50;
-        case 'M':
-            return 51;
-        case 'N':
-            return 52;
-        case 'O':
-            return 53;
-        case 'P':
-            return 54;
-        case 'Q':
-            return 55;
-        case 'R':
-            return 56;
-        case 'S':
-            return 57;
-        case 'T':
-            return 58;
-        case 'U':
-            return 59;
-        case 'V':
-            return 60;
-        case 'W':
-            return 61;
-        case 'X':
-            return 62;
-        case 'Y':
-            return 63;
-        case 'Z':
-            return 64;
-        case '"':
-            return 65;
-        case '\'':
-            return 66;
-        case '[':
-            return 67;
-        case ']':
-            return 68;
-        case '(':
-            return 69;
-        case ')':
-            return 70;
-        case ':':
-            return 71;
-        case ' ':
-            return 72;
-        case '%':
-            return 93;
-        case '!':
-            return 94;
-        case '?':
-            return 95;
-        case '+':
-            return 98;
-        case '-':
-            return 99;
-        case '/':
-            return 100;
-        case '*':
-            return 101;
-        case '=':
-            return 102;
-        case '<':
-            return 103;
-        case '>':
-            return 104;
-        case '#':
-            return 105;
-        case '_':
-            return 186;
-        default:
-            if (cp == utf8::getc(u8"©")) {
-                return 185;
-            }
-            // extended spanish and french characters
-            else if (cp == utf8::getc(u8"ñ")) {
-                return 73;
-            } else if (cp == utf8::getc(u8"á")) {
-                return 74;
-            } else if (cp == utf8::getc(u8"é")) {
-                return 75;
-            } else if (cp == utf8::getc(u8"í")) {
-                return 76;
-            } else if (cp == utf8::getc(u8"ó")) {
-                return 77;
-            } else if (cp == utf8::getc(u8"ú")) {
-                return 78;
-            } else if (cp == utf8::getc(u8"â")) {
-                return 79;
-            } else if (cp == utf8::getc(u8"ê")) {
-                return 80;
-            } else if (cp == utf8::getc(u8"î")) {
-                return 81;
-            } else if (cp == utf8::getc(u8"ô")) {
-                return 82;
-            } else if (cp == utf8::getc(u8"û")) {
-                return 83;
-            } else if (cp == utf8::getc(u8"à")) {
-                return 84;
-            } else if (cp == utf8::getc(u8"è")) {
-                return 85;
-            } else if (cp == utf8::getc(u8"ù")) {
-                return 86;
-            } else if (cp == utf8::getc(u8"ë")) {
-                return 87;
-            } else if (cp == utf8::getc(u8"ï")) {
-                return 88;
-            } else if (cp == utf8::getc(u8"ü")) {
-                return 89;
-            } else if (cp == utf8::getc(u8"ç")) {
-                return 90;
-            } else if (cp == utf8::getc(u8"Ç")) {
-                return 91;
-            } else if (cp == utf8::getc(u8"ö")) {
-                return 92;
-            } else if (cp == utf8::getc(u8"¡")) {
-                return 96;
-            } else if (cp == utf8::getc(u8"¿")) {
-                return 97;
-            }
-            // katakana
-            else if (cp == utf8::getc(u8"ア")) {
-                return 106;
-            } else if (cp == utf8::getc(u8"イ")) {
-                return 107;
-            } else if (cp == utf8::getc(u8"ウ")) {
-                return 108;
-            } else if (cp == utf8::getc(u8"エ")) {
-                return 109;
-            } else if (cp == utf8::getc(u8"オ")) {
-                return 110;
-            } else if (cp == utf8::getc(u8"カ")) {
-                return 111;
-            } else if (cp == utf8::getc(u8"キ")) {
-                return 112;
-            } else if (cp == utf8::getc(u8"ク")) {
-                return 113;
-            } else if (cp == utf8::getc(u8"ケ")) {
-                return 114;
-            } else if (cp == utf8::getc(u8"コ")) {
-                return 115;
-            } else if (cp == utf8::getc(u8"サ")) {
-                return 116;
-            } else if (cp == utf8::getc(u8"シ")) {
-                return 117;
-            } else if (cp == utf8::getc(u8"ス")) {
-                return 118;
-            } else if (cp == utf8::getc(u8"セ")) {
-                return 119;
-            } else if (cp == utf8::getc(u8"ソ")) {
-                return 120;
-            } else if (cp == utf8::getc(u8"タ")) {
-                return 121;
-            } else if (cp == utf8::getc(u8"チ")) {
-                return 122;
-            } else if (cp == utf8::getc(u8"ツ")) {
-                return 123;
-            } else if (cp == utf8::getc(u8"テ")) {
-                return 124;
-            } else if (cp == utf8::getc(u8"ト")) {
-                return 125;
-            } else if (cp == utf8::getc(u8"ナ")) {
-                return 126;
-            } else if (cp == utf8::getc(u8"ニ")) {
-                return 127;
-            } else if (cp == utf8::getc(u8"ヌ")) {
-                return 128;
-            } else if (cp == utf8::getc(u8"ネ")) {
-                return 129;
-            } else if (cp == utf8::getc(u8"ノ")) {
-                return 130;
-            } else if (cp == utf8::getc(u8"ハ")) {
-                return 131;
-            } else if (cp == utf8::getc(u8"ヒ")) {
-                return 132;
-            } else if (cp == utf8::getc(u8"フ")) {
-                return 133;
-            } else if (cp == utf8::getc(u8"ヘ")) {
-                return 134;
-            } else if (cp == utf8::getc(u8"ホ")) {
-                return 135;
-            } else if (cp == utf8::getc(u8"マ")) {
-                return 136;
-            } else if (cp == utf8::getc(u8"ミ")) {
-                return 137;
-            } else if (cp == utf8::getc(u8"ム")) {
-                return 138;
-            } else if (cp == utf8::getc(u8"メ")) {
-                return 139;
-            } else if (cp == utf8::getc(u8"モ")) {
-                return 140;
-            } else if (cp == utf8::getc(u8"ヤ")) {
-                return 141;
-            } else if (cp == utf8::getc(u8"ユ")) {
-                return 142;
-            } else if (cp == utf8::getc(u8"ヨ")) {
-                return 143;
-            } else if (cp == utf8::getc(u8"ラ")) {
-                return 144;
-            } else if (cp == utf8::getc(u8"リ")) {
-                return 145;
-            } else if (cp == utf8::getc(u8"ル")) {
-                return 146;
-            } else if (cp == utf8::getc(u8"レ")) {
-                return 147;
-            } else if (cp == utf8::getc(u8"ロ")) {
-                return 148;
-            } else if (cp == utf8::getc(u8"ワ")) {
-                return 149;
-            } else if (cp == utf8::getc(u8"ヲ")) {
-                return 150;
-            } else if (cp == utf8::getc(u8"ン")) {
-                return 151;
-            } else if (cp == utf8::getc(u8"ガ")) {
-                return 152;
-            } else if (cp == utf8::getc(u8"ギ")) {
-                return 153;
-            } else if (cp == utf8::getc(u8"グ")) {
-                return 154;
-            } else if (cp == utf8::getc(u8"ゲ")) {
-                return 155;
-            } else if (cp == utf8::getc(u8"ゴ")) {
-                return 156;
-            } else if (cp == utf8::getc(u8"ゲ")) {
-                return 157;
-            } else if (cp == utf8::getc(u8"ジ")) {
-                return 158;
-            } else if (cp == utf8::getc(u8"ズ")) {
-                return 159;
-            } else if (cp == utf8::getc(u8"ゼ")) {
-                return 160;
-            } else if (cp == utf8::getc(u8"ゾ")) {
-                return 161;
-            } else if (cp == utf8::getc(u8"ダ")) {
-                return 162;
-            } else if (cp == utf8::getc(u8"ヂ")) {
-                return 163;
-            } else if (cp == utf8::getc(u8"ヅ")) {
-                return 164;
-            } else if (cp == utf8::getc(u8"デ")) {
-                return 165;
-            } else if (cp == utf8::getc(u8"ド")) {
-                return 166;
-            } else if (cp == utf8::getc(u8"バ")) {
-                return 167;
-            } else if (cp == utf8::getc(u8"パ")) {
-                return 168;
-            } else if (cp == utf8::getc(u8"ビ")) {
-                return 169;
-            } else if (cp == utf8::getc(u8"ピ")) {
-                return 170;
-            } else if (cp == utf8::getc(u8"ブ")) {
-                return 171;
-            } else if (cp == utf8::getc(u8"プ")) {
-                return 172;
-            } else if (cp == utf8::getc(u8"ベ")) {
-                return 173;
-            } else if (cp == utf8::getc(u8"ペ")) {
-                return 174;
-            } else if (cp == utf8::getc(u8"ボ")) {
-                return 175;
-            } else if (cp == utf8::getc(u8"ポ")) {
-                return 176;
-            } else if (cp == utf8::getc(u8"ー")) {
-                return 177;
-            } else if (cp == utf8::getc(u8"ヴ")) {
-                return 178;
-            } else if (cp == utf8::getc(u8"ァ")) {
-                return 179;
-            } else if (cp == utf8::getc(u8"ィ")) {
-                return 180;
-            } else if (cp == utf8::getc(u8"ゥ")) {
-                return 181;
-            } else if (cp == utf8::getc(u8"ェ")) {
-                return 182;
-            } else if (cp == utf8::getc(u8"ォ")) {
-                return 183;
-            } else if (cp == utf8::getc(u8"・")) {
-                return 184;
-            }
-            return std::nullopt;
+        case '0': return 1;
+        case '1': return 2;
+        case '2': return 3;
+        case '3': return 4;
+        case '4': return 5;
+        case '5': return 6;
+        case '6': return 7;
+        case '7': return 8;
+        case '8': return 9;
+        case '9': return 10;
+        case 'a': return 11;
+        case 'b': return 12;
+        case 'c': return 13;
+        case 'd': return 14;
+        case 'e': return 15;
+        case 'f': return 16;
+        case 'g': return 17;
+        case 'h': return 18;
+        case 'i': return 19;
+        case 'j': return 20;
+        case 'k': return 21;
+        case 'l': return 22;
+        case 'm': return 23;
+        case 'n': return 24;
+        case 'o': return 25;
+        case 'p': return 26;
+        case 'q': return 27;
+        case 'r': return 28;
+        case 's': return 29;
+        case 't': return 30;
+        case 'u': return 31;
+        case 'v': return 32;
+        case 'w': return 33;
+        case 'x': return 34;
+        case 'y': return 35;
+        case 'z': return 36;
+        case '.': return 37;
+        case ',': return 38;
+        case 'A': return 39;
+        case 'B': return 40;
+        case 'C': return 41;
+        case 'D': return 42;
+        case 'E': return 43;
+        case 'F': return 44;
+        case 'G': return 45;
+        case 'H': return 46;
+        case 'I': return 47;
+        case 'J': return 48;
+        case 'K': return 49;
+        case 'L': return 50;
+        case 'M': return 51;
+        case 'N': return 52;
+        case 'O': return 53;
+        case 'P': return 54;
+        case 'Q': return 55;
+        case 'R': return 56;
+        case 'S': return 57;
+        case 'T': return 58;
+        case 'U': return 59;
+        case 'V': return 60;
+        case 'W': return 61;
+        case 'X': return 62;
+        case 'Y': return 63;
+        case 'Z': return 64;
+        case '"': return 65;
+        case '\'': return 66;
+        case '[': return 67;
+        case ']': return 68;
+        case '(': return 69;
+        case ')': return 70;
+        case ':': return 71;
+        case ' ': return 72;
+        case '%': return 93;
+        case '!': return 94;
+        case '?': return 95;
+        case '+': return 98;
+        case '-': return 99;
+        case '/': return 100;
+        case '*': return 101;
+        case '=': return 102;
+        case '<': return 103;
+        case '>': return 104;
+        case '#': return 105;
+        case '_': return 186;
         }
+        // FIXME: use switch instead for these latin characters, this is just
+        // legacy code that needs to be migrated to the larger case statement.
+        if (cp == utf8::getc(u8"©")) {
+            return 185;
+        }
+        // extended spanish and french characters
+        else if (cp == utf8::getc(u8"ñ")) {
+            return 73;
+        } else if (cp == utf8::getc(u8"á")) {
+            return 74;
+        } else if (cp == utf8::getc(u8"é")) {
+            return 75;
+        } else if (cp == utf8::getc(u8"í")) {
+            return 76;
+        } else if (cp == utf8::getc(u8"ó")) {
+            return 77;
+        } else if (cp == utf8::getc(u8"ú")) {
+            return 78;
+        } else if (cp == utf8::getc(u8"â")) {
+            return 79;
+        } else if (cp == utf8::getc(u8"ê")) {
+            return 80;
+        } else if (cp == utf8::getc(u8"î")) {
+            return 81;
+        } else if (cp == utf8::getc(u8"ô")) {
+            return 82;
+        } else if (cp == utf8::getc(u8"û")) {
+            return 83;
+        } else if (cp == utf8::getc(u8"à")) {
+            return 84;
+        } else if (cp == utf8::getc(u8"è")) {
+            return 85;
+        } else if (cp == utf8::getc(u8"ù")) {
+            return 86;
+        } else if (cp == utf8::getc(u8"ë")) {
+            return 87;
+        } else if (cp == utf8::getc(u8"ï")) {
+            return 88;
+        } else if (cp == utf8::getc(u8"ü")) {
+            return 89;
+        } else if (cp == utf8::getc(u8"ç")) {
+            return 90;
+        } else if (cp == utf8::getc(u8"Ç")) {
+            return 91;
+        } else if (cp == utf8::getc(u8"ö")) {
+            return 92;
+        } else if (cp == utf8::getc(u8"¡")) {
+            return 96;
+        } else if (cp == utf8::getc(u8"¿")) {
+            return 97;
+        }
+        // katakana
+        else if (cp == utf8::getc(u8"ア")) {
+            return 106;
+        } else if (cp == utf8::getc(u8"イ")) {
+            return 107;
+        } else if (cp == utf8::getc(u8"ウ")) {
+            return 108;
+        } else if (cp == utf8::getc(u8"エ")) {
+            return 109;
+        } else if (cp == utf8::getc(u8"オ")) {
+            return 110;
+        } else if (cp == utf8::getc(u8"カ")) {
+            return 111;
+        } else if (cp == utf8::getc(u8"キ")) {
+            return 112;
+        } else if (cp == utf8::getc(u8"ク")) {
+            return 113;
+        } else if (cp == utf8::getc(u8"ケ")) {
+            return 114;
+        } else if (cp == utf8::getc(u8"コ")) {
+            return 115;
+        } else if (cp == utf8::getc(u8"サ")) {
+            return 116;
+        } else if (cp == utf8::getc(u8"シ")) {
+            return 117;
+        } else if (cp == utf8::getc(u8"ス")) {
+            return 118;
+        } else if (cp == utf8::getc(u8"セ")) {
+            return 119;
+        } else if (cp == utf8::getc(u8"ソ")) {
+            return 120;
+        } else if (cp == utf8::getc(u8"タ")) {
+            return 121;
+        } else if (cp == utf8::getc(u8"チ")) {
+            return 122;
+        } else if (cp == utf8::getc(u8"ツ")) {
+            return 123;
+        } else if (cp == utf8::getc(u8"テ")) {
+            return 124;
+        } else if (cp == utf8::getc(u8"ト")) {
+            return 125;
+        } else if (cp == utf8::getc(u8"ナ")) {
+            return 126;
+        } else if (cp == utf8::getc(u8"ニ")) {
+            return 127;
+        } else if (cp == utf8::getc(u8"ヌ")) {
+            return 128;
+        } else if (cp == utf8::getc(u8"ネ")) {
+            return 129;
+        } else if (cp == utf8::getc(u8"ノ")) {
+            return 130;
+        } else if (cp == utf8::getc(u8"ハ")) {
+            return 131;
+        } else if (cp == utf8::getc(u8"ヒ")) {
+            return 132;
+        } else if (cp == utf8::getc(u8"フ")) {
+            return 133;
+        } else if (cp == utf8::getc(u8"ヘ")) {
+            return 134;
+        } else if (cp == utf8::getc(u8"ホ")) {
+            return 135;
+        } else if (cp == utf8::getc(u8"マ")) {
+            return 136;
+        } else if (cp == utf8::getc(u8"ミ")) {
+            return 137;
+        } else if (cp == utf8::getc(u8"ム")) {
+            return 138;
+        } else if (cp == utf8::getc(u8"メ")) {
+            return 139;
+        } else if (cp == utf8::getc(u8"モ")) {
+            return 140;
+        } else if (cp == utf8::getc(u8"ヤ")) {
+            return 141;
+        } else if (cp == utf8::getc(u8"ユ")) {
+            return 142;
+        } else if (cp == utf8::getc(u8"ヨ")) {
+            return 143;
+        } else if (cp == utf8::getc(u8"ラ")) {
+            return 144;
+        } else if (cp == utf8::getc(u8"リ")) {
+            return 145;
+        } else if (cp == utf8::getc(u8"ル")) {
+            return 146;
+        } else if (cp == utf8::getc(u8"レ")) {
+            return 147;
+        } else if (cp == utf8::getc(u8"ロ")) {
+            return 148;
+        } else if (cp == utf8::getc(u8"ワ")) {
+            return 149;
+        } else if (cp == utf8::getc(u8"ヲ")) {
+            return 150;
+        } else if (cp == utf8::getc(u8"ン")) {
+            return 151;
+        } else if (cp == utf8::getc(u8"ガ")) {
+            return 152;
+        } else if (cp == utf8::getc(u8"ギ")) {
+            return 153;
+        } else if (cp == utf8::getc(u8"グ")) {
+            return 154;
+        } else if (cp == utf8::getc(u8"ゲ")) {
+            return 155;
+        } else if (cp == utf8::getc(u8"ゴ")) {
+            return 156;
+        } else if (cp == utf8::getc(u8"ゲ")) {
+            return 157;
+        } else if (cp == utf8::getc(u8"ジ")) {
+            return 158;
+        } else if (cp == utf8::getc(u8"ズ")) {
+            return 159;
+        } else if (cp == utf8::getc(u8"ゼ")) {
+            return 160;
+        } else if (cp == utf8::getc(u8"ゾ")) {
+            return 161;
+        } else if (cp == utf8::getc(u8"ダ")) {
+            return 162;
+        } else if (cp == utf8::getc(u8"ヂ")) {
+            return 163;
+        } else if (cp == utf8::getc(u8"ヅ")) {
+            return 164;
+        } else if (cp == utf8::getc(u8"デ")) {
+            return 165;
+        } else if (cp == utf8::getc(u8"ド")) {
+            return 166;
+        } else if (cp == utf8::getc(u8"バ")) {
+            return 167;
+        } else if (cp == utf8::getc(u8"パ")) {
+            return 168;
+        } else if (cp == utf8::getc(u8"ビ")) {
+            return 169;
+        } else if (cp == utf8::getc(u8"ピ")) {
+            return 170;
+        } else if (cp == utf8::getc(u8"ブ")) {
+            return 171;
+        } else if (cp == utf8::getc(u8"プ")) {
+            return 172;
+        } else if (cp == utf8::getc(u8"ベ")) {
+            return 173;
+        } else if (cp == utf8::getc(u8"ペ")) {
+            return 174;
+        } else if (cp == utf8::getc(u8"ボ")) {
+            return 175;
+        } else if (cp == utf8::getc(u8"ポ")) {
+            return 176;
+        } else if (cp == utf8::getc(u8"ー")) {
+            return 177;
+        } else if (cp == utf8::getc(u8"ヴ")) {
+            return 178;
+        } else if (cp == utf8::getc(u8"ァ")) {
+            return 179;
+        } else if (cp == utf8::getc(u8"ィ")) {
+            return 180;
+        } else if (cp == utf8::getc(u8"ゥ")) {
+            return 181;
+        } else if (cp == utf8::getc(u8"ェ")) {
+            return 182;
+        } else if (cp == utf8::getc(u8"ォ")) {
+            return 183;
+        } else if (cp == utf8::getc(u8"・")) {
+            return 184;
+        }
+
+        // NOTE: this lookup table was generated from a python script. I
+        // certainly did not have the patience to type all of this out by hand.
+        switch (cp) {
+        case UTF8_GETCHR(u8"届"): return 187;
+        case UTF8_GETCHR(u8"俊"): return 188;
+        case UTF8_GETCHR(u8"垫"): return 189;
+        case UTF8_GETCHR(u8"酸"): return 190;
+        case UTF8_GETCHR(u8"层"): return 191;
+        case UTF8_GETCHR(u8"狮"): return 192;
+        case UTF8_GETCHR(u8"观"): return 193;
+        case UTF8_GETCHR(u8"滋"): return 194;
+        case UTF8_GETCHR(u8"伙"): return 195;
+        case UTF8_GETCHR(u8"卖"): return 196;
+        case UTF8_GETCHR(u8"回"): return 197;
+        case UTF8_GETCHR(u8"遥"): return 198;
+        case UTF8_GETCHR(u8"拜"): return 199;
+        case UTF8_GETCHR(u8"突"): return 200;
+        case UTF8_GETCHR(u8"壳"): return 201;
+        case UTF8_GETCHR(u8"辆"): return 202;
+        case UTF8_GETCHR(u8"销"): return 203;
+        case UTF8_GETCHR(u8"颗"): return 204;
+        case UTF8_GETCHR(u8"楼"): return 205;
+        case UTF8_GETCHR(u8"此"): return 206;
+        case UTF8_GETCHR(u8"照"): return 207;
+        case UTF8_GETCHR(u8"舰"): return 208;
+        case UTF8_GETCHR(u8"很"): return 209;
+        case UTF8_GETCHR(u8"脆"): return 210;
+        case UTF8_GETCHR(u8"漫"): return 211;
+        case UTF8_GETCHR(u8"题"): return 212;
+        case UTF8_GETCHR(u8"小"): return 213;
+        case UTF8_GETCHR(u8"吧"): return 214;
+        case UTF8_GETCHR(u8"案"): return 215;
+        case UTF8_GETCHR(u8"北"): return 216;
+        case UTF8_GETCHR(u8"圈"): return 217;
+        case UTF8_GETCHR(u8"需"): return 218;
+        case UTF8_GETCHR(u8"弗"): return 219;
+        case UTF8_GETCHR(u8"玲"): return 220;
+        case UTF8_GETCHR(u8"绕"): return 221;
+        case UTF8_GETCHR(u8"函"): return 222;
+        case UTF8_GETCHR(u8"就"): return 223;
+        case UTF8_GETCHR(u8"湖"): return 224;
+        case UTF8_GETCHR(u8"逢"): return 225;
+        case UTF8_GETCHR(u8"穗"): return 226;
+        case UTF8_GETCHR(u8"谐"): return 227;
+        case UTF8_GETCHR(u8"校"): return 228;
+        case UTF8_GETCHR(u8"皂"): return 229;
+        case UTF8_GETCHR(u8"谜"): return 230;
+        case UTF8_GETCHR(u8"灰"): return 231;
+        case UTF8_GETCHR(u8"纯"): return 232;
+        case UTF8_GETCHR(u8"平"): return 233;
+        case UTF8_GETCHR(u8"鸭"): return 234;
+        case UTF8_GETCHR(u8"澳"): return 235;
+        case UTF8_GETCHR(u8"稀"): return 236;
+        case UTF8_GETCHR(u8"扬"): return 237;
+        case UTF8_GETCHR(u8"喻"): return 238;
+        case UTF8_GETCHR(u8"丽"): return 239;
+        case UTF8_GETCHR(u8"污"): return 240;
+        case UTF8_GETCHR(u8"兄"): return 241;
+        case UTF8_GETCHR(u8"口"): return 242;
+        case UTF8_GETCHR(u8"恋"): return 243;
+        case UTF8_GETCHR(u8"探"): return 244;
+        case UTF8_GETCHR(u8"合"): return 245;
+        case UTF8_GETCHR(u8"轴"): return 246;
+        case UTF8_GETCHR(u8"叠"): return 247;
+        case UTF8_GETCHR(u8"凉"): return 248;
+        case UTF8_GETCHR(u8"役"): return 249;
+        case UTF8_GETCHR(u8"虚"): return 250;
+        case UTF8_GETCHR(u8"落"): return 251;
+        case UTF8_GETCHR(u8"碰"): return 252;
+        case UTF8_GETCHR(u8"慨"): return 253;
+        case UTF8_GETCHR(u8"亏"): return 254;
+        case UTF8_GETCHR(u8"节"): return 255;
+        case UTF8_GETCHR(u8"帅"): return 256;
+        case UTF8_GETCHR(u8"减"): return 257;
+        case UTF8_GETCHR(u8"政"): return 258;
+        case UTF8_GETCHR(u8"腰"): return 259;
+        case UTF8_GETCHR(u8"雅"): return 260;
+        case UTF8_GETCHR(u8"但"): return 261;
+        case UTF8_GETCHR(u8"筹"): return 262;
+        case UTF8_GETCHR(u8"败"): return 263;
+        case UTF8_GETCHR(u8"列"): return 264;
+        case UTF8_GETCHR(u8"弥"): return 265;
+        case UTF8_GETCHR(u8"声"): return 266;
+        case UTF8_GETCHR(u8"漂"): return 267;
+        case UTF8_GETCHR(u8"义"): return 268;
+        case UTF8_GETCHR(u8"瓢"): return 269;
+        case UTF8_GETCHR(u8"灌"): return 270;
+        case UTF8_GETCHR(u8"渔"): return 271;
+        case UTF8_GETCHR(u8"炒"): return 272;
+        case UTF8_GETCHR(u8"觉"): return 273;
+        case UTF8_GETCHR(u8"猜"): return 274;
+        case UTF8_GETCHR(u8"邀"): return 275;
+        case UTF8_GETCHR(u8"部"): return 276;
+        case UTF8_GETCHR(u8"识"): return 277;
+        case UTF8_GETCHR(u8"挺"): return 278;
+        case UTF8_GETCHR(u8"欢"): return 279;
+        case UTF8_GETCHR(u8"说"): return 280;
+        case UTF8_GETCHR(u8"乙"): return 281;
+        case UTF8_GETCHR(u8"每"): return 282;
+        case UTF8_GETCHR(u8"岛"): return 283;
+        case UTF8_GETCHR(u8"宜"): return 284;
+        case UTF8_GETCHR(u8"早"): return 285;
+        case UTF8_GETCHR(u8"夺"): return 286;
+        case UTF8_GETCHR(u8"胶"): return 287;
+        case UTF8_GETCHR(u8"妥"): return 288;
+        case UTF8_GETCHR(u8"虑"): return 289;
+        case UTF8_GETCHR(u8"酿"): return 290;
+        case UTF8_GETCHR(u8"巾"): return 291;
+        case UTF8_GETCHR(u8"垃"): return 292;
+        case UTF8_GETCHR(u8"析"): return 293;
+        case UTF8_GETCHR(u8"钾"): return 294;
+        case UTF8_GETCHR(u8"勉"): return 295;
+        case UTF8_GETCHR(u8"顽"): return 296;
+        case UTF8_GETCHR(u8"及"): return 297;
+        case UTF8_GETCHR(u8"易"): return 298;
+        case UTF8_GETCHR(u8"偷"): return 299;
+        case UTF8_GETCHR(u8"拇"): return 300;
+        case UTF8_GETCHR(u8"聚"): return 301;
+        case UTF8_GETCHR(u8"漏"): return 302;
+        case UTF8_GETCHR(u8"划"): return 303;
+        case UTF8_GETCHR(u8"弃"): return 304;
+        case UTF8_GETCHR(u8"障"): return 305;
+        case UTF8_GETCHR(u8"搭"): return 306;
+        case UTF8_GETCHR(u8"积"): return 307;
+        case UTF8_GETCHR(u8"送"): return 308;
+        case UTF8_GETCHR(u8"旨"): return 309;
+        case UTF8_GETCHR(u8"满"): return 310;
+        case UTF8_GETCHR(u8"沾"): return 311;
+        case UTF8_GETCHR(u8"脉"): return 312;
+        case UTF8_GETCHR(u8"置"): return 313;
+        case UTF8_GETCHR(u8"猎"): return 314;
+        case UTF8_GETCHR(u8"驶"): return 315;
+        case UTF8_GETCHR(u8"扮"): return 316;
+        case UTF8_GETCHR(u8"橙"): return 317;
+        case UTF8_GETCHR(u8"炼"): return 318;
+        case UTF8_GETCHR(u8"邻"): return 319;
+        case UTF8_GETCHR(u8"烤"): return 320;
+        case UTF8_GETCHR(u8"悔"): return 321;
+        case UTF8_GETCHR(u8"谊"): return 322;
+        case UTF8_GETCHR(u8"来"): return 323;
+        case UTF8_GETCHR(u8"买"): return 324;
+        case UTF8_GETCHR(u8"奋"): return 325;
+        case UTF8_GETCHR(u8"窝"): return 326;
+        case UTF8_GETCHR(u8"骂"): return 327;
+        case UTF8_GETCHR(u8"闲"): return 328;
+        case UTF8_GETCHR(u8"丝"): return 329;
+        case UTF8_GETCHR(u8"句"): return 330;
+        case UTF8_GETCHR(u8"继"): return 331;
+        case UTF8_GETCHR(u8"业"): return 332;
+        case UTF8_GETCHR(u8"过"): return 333;
+        case UTF8_GETCHR(u8"真"): return 334;
+        case UTF8_GETCHR(u8"插"): return 335;
+        case UTF8_GETCHR(u8"洁"): return 336;
+        case UTF8_GETCHR(u8"万"): return 337;
+        case UTF8_GETCHR(u8"卸"): return 338;
+        case UTF8_GETCHR(u8"东"): return 339;
+        case UTF8_GETCHR(u8"祝"): return 340;
+        case UTF8_GETCHR(u8"开"): return 341;
+        case UTF8_GETCHR(u8"衔"): return 342;
+        case UTF8_GETCHR(u8"木"): return 343;
+        case UTF8_GETCHR(u8"住"): return 344;
+        case UTF8_GETCHR(u8"折"): return 345;
+        case UTF8_GETCHR(u8"唱"): return 346;
+        case UTF8_GETCHR(u8"法"): return 347;
+        case UTF8_GETCHR(u8"沃"): return 348;
+        case UTF8_GETCHR(u8"沸"): return 349;
+        case UTF8_GETCHR(u8"客"): return 350;
+        case UTF8_GETCHR(u8"啥"): return 351;
+        case UTF8_GETCHR(u8"晒"): return 352;
+        case UTF8_GETCHR(u8"沫"): return 353;
+        case UTF8_GETCHR(u8"卵"): return 354;
+        case UTF8_GETCHR(u8"正"): return 355;
+        case UTF8_GETCHR(u8"淘"): return 356;
+        case UTF8_GETCHR(u8"宪"): return 357;
+        case UTF8_GETCHR(u8"乘"): return 358;
+        case UTF8_GETCHR(u8"问"): return 359;
+        case UTF8_GETCHR(u8"妹"): return 360;
+        case UTF8_GETCHR(u8"偏"): return 361;
+        case UTF8_GETCHR(u8"刘"): return 362;
+        case UTF8_GETCHR(u8"陷"): return 363;
+        case UTF8_GETCHR(u8"然"): return 364;
+        case UTF8_GETCHR(u8"扰"): return 365;
+        case UTF8_GETCHR(u8"鬼"): return 366;
+        case UTF8_GETCHR(u8"挤"): return 367;
+        case UTF8_GETCHR(u8"菌"): return 368;
+        case UTF8_GETCHR(u8"坏"): return 369;
+        case UTF8_GETCHR(u8"掩"): return 370;
+        case UTF8_GETCHR(u8"悉"): return 371;
+        case UTF8_GETCHR(u8"火"): return 372;
+        case UTF8_GETCHR(u8"鸡"): return 373;
+        case UTF8_GETCHR(u8"钉"): return 374;
+        case UTF8_GETCHR(u8"辖"): return 375;
+        case UTF8_GETCHR(u8"励"): return 376;
+        case UTF8_GETCHR(u8"炉"): return 377;
+        case UTF8_GETCHR(u8"骆"): return 378;
+        case UTF8_GETCHR(u8"仁"): return 379;
+        case UTF8_GETCHR(u8"特"): return 380;
+        case UTF8_GETCHR(u8"六"): return 381;
+        case UTF8_GETCHR(u8"浴"): return 382;
+        case UTF8_GETCHR(u8"加"): return 383;
+        case UTF8_GETCHR(u8"脚"): return 384;
+        case UTF8_GETCHR(u8"朋"): return 385;
+        case UTF8_GETCHR(u8"蜜"): return 386;
+        case UTF8_GETCHR(u8"姜"): return 387;
+        case UTF8_GETCHR(u8"浅"): return 388;
+        case UTF8_GETCHR(u8"颂"): return 389;
+        case UTF8_GETCHR(u8"攻"): return 390;
+        case UTF8_GETCHR(u8"署"): return 391;
+        case UTF8_GETCHR(u8"搬"): return 392;
+        case UTF8_GETCHR(u8"详"): return 393;
+        case UTF8_GETCHR(u8"迷"): return 394;
+        case UTF8_GETCHR(u8"携"): return 395;
+        case UTF8_GETCHR(u8"融"): return 396;
+        case UTF8_GETCHR(u8"伏"): return 397;
+        case UTF8_GETCHR(u8"少"): return 398;
+        case UTF8_GETCHR(u8"袭"): return 399;
+        case UTF8_GETCHR(u8"宣"): return 400;
+        case UTF8_GETCHR(u8"舌"): return 401;
+        case UTF8_GETCHR(u8"泡"): return 402;
+        case UTF8_GETCHR(u8"快"): return 403;
+        case UTF8_GETCHR(u8"互"): return 404;
+        case UTF8_GETCHR(u8"仅"): return 405;
+        case UTF8_GETCHR(u8"跑"): return 406;
+        case UTF8_GETCHR(u8"签"): return 407;
+        case UTF8_GETCHR(u8"竞"): return 408;
+        case UTF8_GETCHR(u8"棒"): return 409;
+        case UTF8_GETCHR(u8"饿"): return 410;
+        case UTF8_GETCHR(u8"毕"): return 411;
+        case UTF8_GETCHR(u8"税"): return 412;
+        case UTF8_GETCHR(u8"普"): return 413;
+        case UTF8_GETCHR(u8"宙"): return 414;
+        case UTF8_GETCHR(u8"私"): return 415;
+        case UTF8_GETCHR(u8"峡"): return 416;
+        case UTF8_GETCHR(u8"见"): return 417;
+        case UTF8_GETCHR(u8"做"): return 418;
+        case UTF8_GETCHR(u8"壤"): return 419;
+        case UTF8_GETCHR(u8"姨"): return 420;
+        case UTF8_GETCHR(u8"冯"): return 421;
+        case UTF8_GETCHR(u8"碑"): return 422;
+        case UTF8_GETCHR(u8"怜"): return 423;
+        case UTF8_GETCHR(u8"昌"): return 424;
+        case UTF8_GETCHR(u8"粒"): return 425;
+        case UTF8_GETCHR(u8"栖"): return 426;
+        case UTF8_GETCHR(u8"击"): return 427;
+        case UTF8_GETCHR(u8"兵"): return 428;
+        case UTF8_GETCHR(u8"赞"): return 429;
+        case UTF8_GETCHR(u8"荷"): return 430;
+        case UTF8_GETCHR(u8"可"): return 431;
+        case UTF8_GETCHR(u8"湿"): return 432;
+        case UTF8_GETCHR(u8"笼"): return 433;
+        case UTF8_GETCHR(u8"泪"): return 434;
+        case UTF8_GETCHR(u8"亿"): return 435;
+        case UTF8_GETCHR(u8"也"): return 436;
+        case UTF8_GETCHR(u8"脑"): return 437;
+        case UTF8_GETCHR(u8"赢"): return 438;
+        case UTF8_GETCHR(u8"我"): return 439;
+        case UTF8_GETCHR(u8"疑"): return 440;
+        case UTF8_GETCHR(u8"初"): return 441;
+        case UTF8_GETCHR(u8"前"): return 442;
+        case UTF8_GETCHR(u8"于"): return 443;
+        case UTF8_GETCHR(u8"暂"): return 444;
+        case UTF8_GETCHR(u8"恩"): return 445;
+        case UTF8_GETCHR(u8"虎"): return 446;
+        case UTF8_GETCHR(u8"撞"): return 447;
+        case UTF8_GETCHR(u8"翁"): return 448;
+        case UTF8_GETCHR(u8"试"): return 449;
+        case UTF8_GETCHR(u8"隆"): return 450;
+        case UTF8_GETCHR(u8"伞"): return 451;
+        case UTF8_GETCHR(u8"忆"): return 452;
+        case UTF8_GETCHR(u8"吁"): return 453;
+        case UTF8_GETCHR(u8"职"): return 454;
+        case UTF8_GETCHR(u8"瓣"): return 455;
+        case UTF8_GETCHR(u8"吊"): return 456;
+        case UTF8_GETCHR(u8"热"): return 457;
+        case UTF8_GETCHR(u8"叫"): return 458;
+        case UTF8_GETCHR(u8"圾"): return 459;
+        case UTF8_GETCHR(u8"雾"): return 460;
+        case UTF8_GETCHR(u8"条"): return 461;
+        case UTF8_GETCHR(u8"吵"): return 462;
+        case UTF8_GETCHR(u8"袋"): return 463;
+        case UTF8_GETCHR(u8"暴"): return 464;
+        case UTF8_GETCHR(u8"丘"): return 465;
+        case UTF8_GETCHR(u8"脾"): return 466;
+        case UTF8_GETCHR(u8"扁"): return 467;
+        case UTF8_GETCHR(u8"睁"): return 468;
+        case UTF8_GETCHR(u8"丈"): return 469;
+        case UTF8_GETCHR(u8"超"): return 470;
+        case UTF8_GETCHR(u8"握"): return 471;
+        case UTF8_GETCHR(u8"杜"): return 472;
+        case UTF8_GETCHR(u8"哗"): return 473;
+        case UTF8_GETCHR(u8"想"): return 474;
+        case UTF8_GETCHR(u8"搅"): return 475;
+        case UTF8_GETCHR(u8"唐"): return 476;
+        case UTF8_GETCHR(u8"弹"): return 477;
+        case UTF8_GETCHR(u8"桂"): return 478;
+        case UTF8_GETCHR(u8"宰"): return 479;
+        case UTF8_GETCHR(u8"无"): return 480;
+        case UTF8_GETCHR(u8"艰"): return 481;
+        case UTF8_GETCHR(u8"烂"): return 482;
+        case UTF8_GETCHR(u8"惯"): return 483;
+        case UTF8_GETCHR(u8"在"): return 484;
+        case UTF8_GETCHR(u8"持"): return 485;
+        case UTF8_GETCHR(u8"惨"): return 486;
+        case UTF8_GETCHR(u8"家"): return 487;
+        case UTF8_GETCHR(u8"包"): return 488;
+        case UTF8_GETCHR(u8"芳"): return 489;
+        case UTF8_GETCHR(u8"呆"): return 490;
+        case UTF8_GETCHR(u8"面"): return 491;
+        case UTF8_GETCHR(u8"宝"): return 492;
+        case UTF8_GETCHR(u8"咳"): return 493;
+        case UTF8_GETCHR(u8"张"): return 494;
+        case UTF8_GETCHR(u8"模"): return 495;
+        case UTF8_GETCHR(u8"籍"): return 496;
+        case UTF8_GETCHR(u8"侧"): return 497;
+        case UTF8_GETCHR(u8"仲"): return 498;
+        case UTF8_GETCHR(u8"址"): return 499;
+        case UTF8_GETCHR(u8"娱"): return 500;
+        case UTF8_GETCHR(u8"锻"): return 501;
+        case UTF8_GETCHR(u8"半"): return 502;
+        case UTF8_GETCHR(u8"痛"): return 503;
+        case UTF8_GETCHR(u8"属"): return 504;
+        case UTF8_GETCHR(u8"号"): return 505;
+        case UTF8_GETCHR(u8"票"): return 506;
+        case UTF8_GETCHR(u8"场"): return 507;
+        case UTF8_GETCHR(u8"枢"): return 508;
+        case UTF8_GETCHR(u8"依"): return 509;
+        case UTF8_GETCHR(u8"葬"): return 510;
+        case UTF8_GETCHR(u8"标"): return 511;
+        case UTF8_GETCHR(u8"括"): return 512;
+        case UTF8_GETCHR(u8"萌"): return 513;
+        case UTF8_GETCHR(u8"母"): return 514;
+        case UTF8_GETCHR(u8"辩"): return 515;
+        case UTF8_GETCHR(u8"尊"): return 516;
+        case UTF8_GETCHR(u8"赴"): return 517;
+        case UTF8_GETCHR(u8"杭"): return 518;
+        case UTF8_GETCHR(u8"湘"): return 519;
+        case UTF8_GETCHR(u8"土"): return 520;
+        case UTF8_GETCHR(u8"述"): return 521;
+        case UTF8_GETCHR(u8"坟"): return 522;
+        case UTF8_GETCHR(u8"君"): return 523;
+        case UTF8_GETCHR(u8"袖"): return 524;
+        case UTF8_GETCHR(u8"砌"): return 525;
+        case UTF8_GETCHR(u8"穴"): return 526;
+        case UTF8_GETCHR(u8"川"): return 527;
+        case UTF8_GETCHR(u8"穿"): return 528;
+        case UTF8_GETCHR(u8"爪"): return 529;
+        case UTF8_GETCHR(u8"饮"): return 530;
+        case UTF8_GETCHR(u8"傅"): return 531;
+        case UTF8_GETCHR(u8"痒"): return 532;
+        case UTF8_GETCHR(u8"凹"): return 533;
+        case UTF8_GETCHR(u8"克"): return 534;
+        case UTF8_GETCHR(u8"州"): return 535;
+        case UTF8_GETCHR(u8"僵"): return 536;
+        case UTF8_GETCHR(u8"译"): return 537;
+        case UTF8_GETCHR(u8"叮"): return 538;
+        case UTF8_GETCHR(u8"允"): return 539;
+        case UTF8_GETCHR(u8"宋"): return 540;
+        case UTF8_GETCHR(u8"如"): return 541;
+        case UTF8_GETCHR(u8"氧"): return 542;
+        case UTF8_GETCHR(u8"格"): return 543;
+        case UTF8_GETCHR(u8"宾"): return 544;
+        case UTF8_GETCHR(u8"岗"): return 545;
+        case UTF8_GETCHR(u8"淹"): return 546;
+        case UTF8_GETCHR(u8"央"): return 547;
+        case UTF8_GETCHR(u8"叭"): return 548;
+        case UTF8_GETCHR(u8"添"): return 549;
+        case UTF8_GETCHR(u8"青"): return 550;
+        case UTF8_GETCHR(u8"先"): return 551;
+        case UTF8_GETCHR(u8"泊"): return 552;
+        case UTF8_GETCHR(u8"跟"): return 553;
+        case UTF8_GETCHR(u8"才"): return 554;
+        case UTF8_GETCHR(u8"幕"): return 555;
+        case UTF8_GETCHR(u8"蒲"): return 556;
+        case UTF8_GETCHR(u8"醉"): return 557;
+        case UTF8_GETCHR(u8"黄"): return 558;
+        case UTF8_GETCHR(u8"犁"): return 559;
+        case UTF8_GETCHR(u8"派"): return 560;
+        case UTF8_GETCHR(u8"珍"): return 561;
+        case UTF8_GETCHR(u8"叛"): return 562;
+        case UTF8_GETCHR(u8"一"): return 563;
+        case UTF8_GETCHR(u8"必"): return 564;
+        case UTF8_GETCHR(u8"斯"): return 565;
+        case UTF8_GETCHR(u8"莲"): return 566;
+        case UTF8_GETCHR(u8"惟"): return 567;
+        case UTF8_GETCHR(u8"点"): return 568;
+        case UTF8_GETCHR(u8"享"): return 569;
+        case UTF8_GETCHR(u8"刚"): return 570;
+        case UTF8_GETCHR(u8"功"): return 571;
+        case UTF8_GETCHR(u8"构"): return 572;
+        case UTF8_GETCHR(u8"铺"): return 573;
+        case UTF8_GETCHR(u8"膜"): return 574;
+        case UTF8_GETCHR(u8"切"): return 575;
+        case UTF8_GETCHR(u8"饼"): return 576;
+        case UTF8_GETCHR(u8"嫩"): return 577;
+        case UTF8_GETCHR(u8"综"): return 578;
+        case UTF8_GETCHR(u8"裂"): return 579;
+        case UTF8_GETCHR(u8"门"): return 580;
+        case UTF8_GETCHR(u8"泌"): return 581;
+        case UTF8_GETCHR(u8"旧"): return 582;
+        case UTF8_GETCHR(u8"打"): return 583;
+        case UTF8_GETCHR(u8"稳"): return 584;
+        case UTF8_GETCHR(u8"酷"): return 585;
+        case UTF8_GETCHR(u8"糖"): return 586;
+        case UTF8_GETCHR(u8"她"): return 587;
+        case UTF8_GETCHR(u8"皆"): return 588;
+        case UTF8_GETCHR(u8"裙"): return 589;
+        case UTF8_GETCHR(u8"审"): return 590;
+        case UTF8_GETCHR(u8"批"): return 591;
+        case UTF8_GETCHR(u8"奇"): return 592;
+        case UTF8_GETCHR(u8"拍"): return 593;
+        case UTF8_GETCHR(u8"务"): return 594;
+        case UTF8_GETCHR(u8"板"): return 595;
+        case UTF8_GETCHR(u8"巢"): return 596;
+        case UTF8_GETCHR(u8"红"): return 597;
+        case UTF8_GETCHR(u8"店"): return 598;
+        case UTF8_GETCHR(u8"牛"): return 599;
+        case UTF8_GETCHR(u8"近"): return 600;
+        case UTF8_GETCHR(u8"排"): return 601;
+        case UTF8_GETCHR(u8"浮"): return 602;
+        case UTF8_GETCHR(u8"贯"): return 603;
+        case UTF8_GETCHR(u8"安"): return 604;
+        case UTF8_GETCHR(u8"林"): return 605;
+        case UTF8_GETCHR(u8"势"): return 606;
+        case UTF8_GETCHR(u8"鹏"): return 607;
+        case UTF8_GETCHR(u8"蜂"): return 608;
+        case UTF8_GETCHR(u8"笋"): return 609;
+        case UTF8_GETCHR(u8"骑"): return 610;
+        case UTF8_GETCHR(u8"担"): return 611;
+        case UTF8_GETCHR(u8"慌"): return 612;
+        case UTF8_GETCHR(u8"逼"): return 613;
+        case UTF8_GETCHR(u8"酒"): return 614;
+        case UTF8_GETCHR(u8"辣"): return 615;
+        case UTF8_GETCHR(u8"跳"): return 616;
+        case UTF8_GETCHR(u8"莫"): return 617;
+        case UTF8_GETCHR(u8"码"): return 618;
+        case UTF8_GETCHR(u8"芽"): return 619;
+        case UTF8_GETCHR(u8"吃"): return 620;
+        case UTF8_GETCHR(u8"叙"): return 621;
+        case UTF8_GETCHR(u8"卷"): return 622;
+        case UTF8_GETCHR(u8"坚"): return 623;
+        case UTF8_GETCHR(u8"旁"): return 624;
+        case UTF8_GETCHR(u8"居"): return 625;
+        case UTF8_GETCHR(u8"目"): return 626;
+        case UTF8_GETCHR(u8"既"): return 627;
+        case UTF8_GETCHR(u8"祸"): return 628;
+        case UTF8_GETCHR(u8"诉"): return 629;
+        case UTF8_GETCHR(u8"朵"): return 630;
+        case UTF8_GETCHR(u8"等"): return 631;
+        case UTF8_GETCHR(u8"绪"): return 632;
+        case UTF8_GETCHR(u8"陈"): return 633;
+        case UTF8_GETCHR(u8"斤"): return 634;
+        case UTF8_GETCHR(u8"便"): return 635;
+        case UTF8_GETCHR(u8"空"): return 636;
+        case UTF8_GETCHR(u8"康"): return 637;
+        case UTF8_GETCHR(u8"匆"): return 638;
+        case UTF8_GETCHR(u8"语"): return 639;
+        case UTF8_GETCHR(u8"洗"): return 640;
+        case UTF8_GETCHR(u8"煤"): return 641;
+        case UTF8_GETCHR(u8"液"): return 642;
+        case UTF8_GETCHR(u8"颠"): return 643;
+        case UTF8_GETCHR(u8"史"): return 644;
+        case UTF8_GETCHR(u8"缸"): return 645;
+        case UTF8_GETCHR(u8"外"): return 646;
+        case UTF8_GETCHR(u8"汉"): return 647;
+        case UTF8_GETCHR(u8"秋"): return 648;
+        case UTF8_GETCHR(u8"抹"): return 649;
+        case UTF8_GETCHR(u8"蒜"): return 650;
+        case UTF8_GETCHR(u8"怕"): return 651;
+        case UTF8_GETCHR(u8"枝"): return 652;
+        case UTF8_GETCHR(u8"惊"): return 653;
+        case UTF8_GETCHR(u8"束"): return 654;
+        case UTF8_GETCHR(u8"咽"): return 655;
+        case UTF8_GETCHR(u8"坦"): return 656;
+        case UTF8_GETCHR(u8"株"): return 657;
+        case UTF8_GETCHR(u8"仓"): return 658;
+        case UTF8_GETCHR(u8"铜"): return 659;
+        case UTF8_GETCHR(u8"拟"): return 660;
+        case UTF8_GETCHR(u8"尺"): return 661;
+        case UTF8_GETCHR(u8"怀"): return 662;
+        case UTF8_GETCHR(u8"吼"): return 663;
+        case UTF8_GETCHR(u8"哪"): return 664;
+        case UTF8_GETCHR(u8"谈"): return 665;
+        case UTF8_GETCHR(u8"矩"): return 666;
+        case UTF8_GETCHR(u8"促"): return 667;
+        case UTF8_GETCHR(u8"勒"): return 668;
+        case UTF8_GETCHR(u8"金"): return 669;
+        case UTF8_GETCHR(u8"翠"): return 670;
+        case UTF8_GETCHR(u8"雪"): return 671;
+        case UTF8_GETCHR(u8"趁"): return 672;
+        case UTF8_GETCHR(u8"汗"): return 673;
+        case UTF8_GETCHR(u8"至"): return 674;
+        case UTF8_GETCHR(u8"珠"): return 675;
+        case UTF8_GETCHR(u8"芒"): return 676;
+        case UTF8_GETCHR(u8"害"): return 677;
+        case UTF8_GETCHR(u8"追"): return 678;
+        case UTF8_GETCHR(u8"队"): return 679;
+        case UTF8_GETCHR(u8"纤"): return 680;
+        case UTF8_GETCHR(u8"膝"): return 681;
+        case UTF8_GETCHR(u8"韩"): return 682;
+        case UTF8_GETCHR(u8"革"): return 683;
+        case UTF8_GETCHR(u8"步"): return 684;
+        case UTF8_GETCHR(u8"走"): return 685;
+        case UTF8_GETCHR(u8"兔"): return 686;
+        case UTF8_GETCHR(u8"球"): return 687;
+        case UTF8_GETCHR(u8"途"): return 688;
+        case UTF8_GETCHR(u8"圆"): return 689;
+        case UTF8_GETCHR(u8"帆"): return 690;
+        case UTF8_GETCHR(u8"糊"): return 691;
+        case UTF8_GETCHR(u8"递"): return 692;
+        case UTF8_GETCHR(u8"予"): return 693;
+        case UTF8_GETCHR(u8"疲"): return 694;
+        case UTF8_GETCHR(u8"那"): return 695;
+        case UTF8_GETCHR(u8"谓"): return 696;
+        case UTF8_GETCHR(u8"赠"): return 697;
+        case UTF8_GETCHR(u8"葱"): return 698;
+        case UTF8_GETCHR(u8"昂"): return 699;
+        case UTF8_GETCHR(u8"雀"): return 700;
+        case UTF8_GETCHR(u8"驱"): return 701;
+        case UTF8_GETCHR(u8"与"): return 702;
+        case UTF8_GETCHR(u8"守"): return 703;
+        case UTF8_GETCHR(u8"种"): return 704;
+        case UTF8_GETCHR(u8"烈"): return 705;
+        case UTF8_GETCHR(u8"卡"): return 706;
+        case UTF8_GETCHR(u8"换"): return 707;
+        case UTF8_GETCHR(u8"范"): return 708;
+        case UTF8_GETCHR(u8"蹲"): return 709;
+        case UTF8_GETCHR(u8"债"): return 710;
+        case UTF8_GETCHR(u8"背"): return 711;
+        case UTF8_GETCHR(u8"横"): return 712;
+        case UTF8_GETCHR(u8"乌"): return 713;
+        case UTF8_GETCHR(u8"扶"): return 714;
+        case UTF8_GETCHR(u8"敲"): return 715;
+        case UTF8_GETCHR(u8"生"): return 716;
+        case UTF8_GETCHR(u8"嫂"): return 717;
+        case UTF8_GETCHR(u8"移"): return 718;
+        case UTF8_GETCHR(u8"饱"): return 719;
+        case UTF8_GETCHR(u8"哄"): return 720;
+        case UTF8_GETCHR(u8"衬"): return 721;
+        case UTF8_GETCHR(u8"寓"): return 722;
+        case UTF8_GETCHR(u8"情"): return 723;
+        case UTF8_GETCHR(u8"播"): return 724;
+        case UTF8_GETCHR(u8"慈"): return 725;
+        case UTF8_GETCHR(u8"躯"): return 726;
+        case UTF8_GETCHR(u8"扣"): return 727;
+        case UTF8_GETCHR(u8"歇"): return 728;
+        case UTF8_GETCHR(u8"垄"): return 729;
+        case UTF8_GETCHR(u8"造"): return 730;
+        case UTF8_GETCHR(u8"迅"): return 731;
+        case UTF8_GETCHR(u8"济"): return 732;
+        case UTF8_GETCHR(u8"凝"): return 733;
+        case UTF8_GETCHR(u8"勾"): return 734;
+        case UTF8_GETCHR(u8"源"): return 735;
+        case UTF8_GETCHR(u8"输"): return 736;
+        case UTF8_GETCHR(u8"柜"): return 737;
+        case UTF8_GETCHR(u8"床"): return 738;
+        case UTF8_GETCHR(u8"城"): return 739;
+        case UTF8_GETCHR(u8"角"): return 740;
+        case UTF8_GETCHR(u8"蝙"): return 741;
+        case UTF8_GETCHR(u8"显"): return 742;
+        case UTF8_GETCHR(u8"哈"): return 743;
+        case UTF8_GETCHR(u8"吓"): return 744;
+        case UTF8_GETCHR(u8"章"): return 745;
+        case UTF8_GETCHR(u8"孤"): return 746;
+        case UTF8_GETCHR(u8"指"): return 747;
+        case UTF8_GETCHR(u8"溃"): return 748;
+        case UTF8_GETCHR(u8"升"): return 749;
+        case UTF8_GETCHR(u8"慎"): return 750;
+        case UTF8_GETCHR(u8"赫"): return 751;
+        case UTF8_GETCHR(u8"骗"): return 752;
+        case UTF8_GETCHR(u8"眼"): return 753;
+        case UTF8_GETCHR(u8"或"): return 754;
+        case UTF8_GETCHR(u8"治"): return 755;
+        case UTF8_GETCHR(u8"诞"): return 756;
+        case UTF8_GETCHR(u8"幽"): return 757;
+        case UTF8_GETCHR(u8"蓬"): return 758;
+        case UTF8_GETCHR(u8"暖"): return 759;
+        case UTF8_GETCHR(u8"辉"): return 760;
+        case UTF8_GETCHR(u8"新"): return 761;
+        case UTF8_GETCHR(u8"些"): return 762;
+        case UTF8_GETCHR(u8"崩"): return 763;
+        case UTF8_GETCHR(u8"霸"): return 764;
+        case UTF8_GETCHR(u8"文"): return 765;
+        case UTF8_GETCHR(u8"利"): return 766;
+        case UTF8_GETCHR(u8"申"): return 767;
+        case UTF8_GETCHR(u8"去"): return 768;
+        case UTF8_GETCHR(u8"统"): return 769;
+        case UTF8_GETCHR(u8"里"): return 770;
+        case UTF8_GETCHR(u8"怨"): return 771;
+        case UTF8_GETCHR(u8"辞"): return 772;
+        case UTF8_GETCHR(u8"氯"): return 773;
+        case UTF8_GETCHR(u8"阶"): return 774;
+        case UTF8_GETCHR(u8"腐"): return 775;
+        case UTF8_GETCHR(u8"疼"): return 776;
+        case UTF8_GETCHR(u8"脏"): return 777;
+        case UTF8_GETCHR(u8"灶"): return 778;
+        case UTF8_GETCHR(u8"仰"): return 779;
+        case UTF8_GETCHR(u8"尿"): return 780;
+        case UTF8_GETCHR(u8"辨"): return 781;
+        case UTF8_GETCHR(u8"遮"): return 782;
+        case UTF8_GETCHR(u8"涌"): return 783;
+        case UTF8_GETCHR(u8"抢"): return 784;
+        case UTF8_GETCHR(u8"抓"): return 785;
+        case UTF8_GETCHR(u8"韵"): return 786;
+        case UTF8_GETCHR(u8"叶"): return 787;
+        case UTF8_GETCHR(u8"泻"): return 788;
+        case UTF8_GETCHR(u8"牡"): return 789;
+        case UTF8_GETCHR(u8"刀"): return 790;
+        case UTF8_GETCHR(u8"络"): return 791;
+        case UTF8_GETCHR(u8"颇"): return 792;
+        case UTF8_GETCHR(u8"察"): return 793;
+        case UTF8_GETCHR(u8"裸"): return 794;
+        case UTF8_GETCHR(u8"莱"): return 795;
+        case UTF8_GETCHR(u8"光"): return 796;
+        case UTF8_GETCHR(u8"谱"): return 797;
+        case UTF8_GETCHR(u8"滴"): return 798;
+        case UTF8_GETCHR(u8"泉"): return 799;
+        case UTF8_GETCHR(u8"堂"): return 800;
+        case UTF8_GETCHR(u8"还"): return 801;
+        case UTF8_GETCHR(u8"滨"): return 802;
+        case UTF8_GETCHR(u8"交"): return 803;
+        case UTF8_GETCHR(u8"智"): return 804;
+        case UTF8_GETCHR(u8"旋"): return 805;
+        case UTF8_GETCHR(u8"钩"): return 806;
+        case UTF8_GETCHR(u8"恐"): return 807;
+        case UTF8_GETCHR(u8"却"): return 808;
+        case UTF8_GETCHR(u8"退"): return 809;
+        case UTF8_GETCHR(u8"深"): return 810;
+        case UTF8_GETCHR(u8"兼"): return 811;
+        case UTF8_GETCHR(u8"博"): return 812;
+        case UTF8_GETCHR(u8"扩"): return 813;
+        case UTF8_GETCHR(u8"衡"): return 814;
+        case UTF8_GETCHR(u8"努"): return 815;
+        case UTF8_GETCHR(u8"胖"): return 816;
+        case UTF8_GETCHR(u8"哨"): return 817;
+        case UTF8_GETCHR(u8"牢"): return 818;
+        case UTF8_GETCHR(u8"锐"): return 819;
+        case UTF8_GETCHR(u8"瞬"): return 820;
+        case UTF8_GETCHR(u8"材"): return 821;
+        case UTF8_GETCHR(u8"毛"): return 822;
+        case UTF8_GETCHR(u8"赏"): return 823;
+        case UTF8_GETCHR(u8"地"): return 824;
+        case UTF8_GETCHR(u8"储"): return 825;
+        case UTF8_GETCHR(u8"窃"): return 826;
+        case UTF8_GETCHR(u8"卑"): return 827;
+        case UTF8_GETCHR(u8"蹄"): return 828;
+        case UTF8_GETCHR(u8"筋"): return 829;
+        case UTF8_GETCHR(u8"凳"): return 830;
+        case UTF8_GETCHR(u8"厢"): return 831;
+        case UTF8_GETCHR(u8"后"): return 832;
+        case UTF8_GETCHR(u8"饥"): return 833;
+        case UTF8_GETCHR(u8"笔"): return 834;
+        case UTF8_GETCHR(u8"陌"): return 835;
+        case UTF8_GETCHR(u8"匀"): return 836;
+        case UTF8_GETCHR(u8"愤"): return 837;
+        case UTF8_GETCHR(u8"下"): return 838;
+        case UTF8_GETCHR(u8"踏"): return 839;
+        case UTF8_GETCHR(u8"严"): return 840;
+        case UTF8_GETCHR(u8"敏"): return 841;
+        case UTF8_GETCHR(u8"厅"): return 842;
+        case UTF8_GETCHR(u8"梯"): return 843;
+        case UTF8_GETCHR(u8"恼"): return 844;
+        case UTF8_GETCHR(u8"困"): return 845;
+        case UTF8_GETCHR(u8"戏"): return 846;
+        case UTF8_GETCHR(u8"春"): return 847;
+        case UTF8_GETCHR(u8"企"): return 848;
+        case UTF8_GETCHR(u8"边"): return 849;
+        case UTF8_GETCHR(u8"专"): return 850;
+        case UTF8_GETCHR(u8"粗"): return 851;
+        case UTF8_GETCHR(u8"投"): return 852;
+        case UTF8_GETCHR(u8"曼"): return 853;
+        case UTF8_GETCHR(u8"分"): return 854;
+        case UTF8_GETCHR(u8"变"): return 855;
+        case UTF8_GETCHR(u8"资"): return 856;
+        case UTF8_GETCHR(u8"晶"): return 857;
+        case UTF8_GETCHR(u8"士"): return 858;
+        case UTF8_GETCHR(u8"稼"): return 859;
+        case UTF8_GETCHR(u8"踪"): return 860;
+        case UTF8_GETCHR(u8"健"): return 861;
+        case UTF8_GETCHR(u8"留"): return 862;
+        case UTF8_GETCHR(u8"渐"): return 863;
+        case UTF8_GETCHR(u8"双"): return 864;
+        case UTF8_GETCHR(u8"脖"): return 865;
+        case UTF8_GETCHR(u8"挪"): return 866;
+        case UTF8_GETCHR(u8"本"): return 867;
+        case UTF8_GETCHR(u8"劫"): return 868;
+        case UTF8_GETCHR(u8"旺"): return 869;
+        case UTF8_GETCHR(u8"萎"): return 870;
+        case UTF8_GETCHR(u8"览"): return 871;
+        case UTF8_GETCHR(u8"竟"): return 872;
+        case UTF8_GETCHR(u8"答"): return 873;
+        case UTF8_GETCHR(u8"缠"): return 874;
+        case UTF8_GETCHR(u8"厦"): return 875;
+        case UTF8_GETCHR(u8"消"): return 876;
+        case UTF8_GETCHR(u8"椅"): return 877;
+        case UTF8_GETCHR(u8"购"): return 878;
+        case UTF8_GETCHR(u8"捷"): return 879;
+        case UTF8_GETCHR(u8"拥"): return 880;
+        case UTF8_GETCHR(u8"恨"): return 881;
+        case UTF8_GETCHR(u8"许"): return 882;
+        case UTF8_GETCHR(u8"杰"): return 883;
+        case UTF8_GETCHR(u8"棚"): return 884;
+        case UTF8_GETCHR(u8"描"): return 885;
+        case UTF8_GETCHR(u8"友"): return 886;
+        case UTF8_GETCHR(u8"时"): return 887;
+        case UTF8_GETCHR(u8"水"): return 888;
+        case UTF8_GETCHR(u8"踩"): return 889;
+        case UTF8_GETCHR(u8"灾"): return 890;
+        case UTF8_GETCHR(u8"映"): return 891;
+        case UTF8_GETCHR(u8"律"): return 892;
+        case UTF8_GETCHR(u8"粪"): return 893;
+        case UTF8_GETCHR(u8"丢"): return 894;
+        case UTF8_GETCHR(u8"夸"): return 895;
+        case UTF8_GETCHR(u8"纬"): return 896;
+        case UTF8_GETCHR(u8"讯"): return 897;
+        case UTF8_GETCHR(u8"傲"): return 898;
+        case UTF8_GETCHR(u8"碧"): return 899;
+        case UTF8_GETCHR(u8"茫"): return 900;
+        case UTF8_GETCHR(u8"瓶"): return 901;
+        case UTF8_GETCHR(u8"丙"): return 902;
+        case UTF8_GETCHR(u8"常"): return 903;
+        case UTF8_GETCHR(u8"志"): return 904;
+        case UTF8_GETCHR(u8"哥"): return 905;
+        case UTF8_GETCHR(u8"孔"): return 906;
+        case UTF8_GETCHR(u8"传"): return 907;
+        case UTF8_GETCHR(u8"著"): return 908;
+        case UTF8_GETCHR(u8"度"): return 909;
+        case UTF8_GETCHR(u8"虹"): return 910;
+        case UTF8_GETCHR(u8"干"): return 911;
+        case UTF8_GETCHR(u8"宇"): return 912;
+        case UTF8_GETCHR(u8"坡"): return 913;
+        case UTF8_GETCHR(u8"蝠"): return 914;
+        case UTF8_GETCHR(u8"限"): return 915;
+        case UTF8_GETCHR(u8"狗"): return 916;
+        case UTF8_GETCHR(u8"高"): return 917;
+        case UTF8_GETCHR(u8"茂"): return 918;
+        case UTF8_GETCHR(u8"骨"): return 919;
+        case UTF8_GETCHR(u8"育"): return 920;
+        case UTF8_GETCHR(u8"茶"): return 921;
+        case UTF8_GETCHR(u8"负"): return 922;
+        case UTF8_GETCHR(u8"辟"): return 923;
+        case UTF8_GETCHR(u8"磷"): return 924;
+        case UTF8_GETCHR(u8"胡"): return 925;
+        case UTF8_GETCHR(u8"筒"): return 926;
+        case UTF8_GETCHR(u8"渗"): return 927;
+        case UTF8_GETCHR(u8"畅"): return 928;
+        case UTF8_GETCHR(u8"异"): return 929;
+        case UTF8_GETCHR(u8"晕"): return 930;
+        case UTF8_GETCHR(u8"猩"): return 931;
+        case UTF8_GETCHR(u8"径"): return 932;
+        case UTF8_GETCHR(u8"摇"): return 933;
+        case UTF8_GETCHR(u8"诊"): return 934;
+        case UTF8_GETCHR(u8"根"): return 935;
+        case UTF8_GETCHR(u8"终"): return 936;
+        case UTF8_GETCHR(u8"速"): return 937;
+        case UTF8_GETCHR(u8"最"): return 938;
+        case UTF8_GETCHR(u8"晋"): return 939;
+        case UTF8_GETCHR(u8"孝"): return 940;
+        case UTF8_GETCHR(u8"且"): return 941;
+        case UTF8_GETCHR(u8"祥"): return 942;
+        case UTF8_GETCHR(u8"帝"): return 943;
+        case UTF8_GETCHR(u8"狠"): return 944;
+        case UTF8_GETCHR(u8"扫"): return 945;
+        case UTF8_GETCHR(u8"饭"): return 946;
+        case UTF8_GETCHR(u8"螺"): return 947;
+        case UTF8_GETCHR(u8"屠"): return 948;
+        case UTF8_GETCHR(u8"谦"): return 949;
+        case UTF8_GETCHR(u8"取"): return 950;
+        case UTF8_GETCHR(u8"贼"): return 951;
+        case UTF8_GETCHR(u8"某"): return 952;
+        case UTF8_GETCHR(u8"兽"): return 953;
+        case UTF8_GETCHR(u8"欧"): return 954;
+        case UTF8_GETCHR(u8"羊"): return 955;
+        case UTF8_GETCHR(u8"率"): return 956;
+        case UTF8_GETCHR(u8"几"): return 957;
+        case UTF8_GETCHR(u8"尾"): return 958;
+        case UTF8_GETCHR(u8"蛇"): return 959;
+        case UTF8_GETCHR(u8"咬"): return 960;
+        case UTF8_GETCHR(u8"臂"): return 961;
+        case UTF8_GETCHR(u8"端"): return 962;
+        case UTF8_GETCHR(u8"奶"): return 963;
+        case UTF8_GETCHR(u8"镜"): return 964;
+        case UTF8_GETCHR(u8"展"): return 965;
+        case UTF8_GETCHR(u8"鸦"): return 966;
+        case UTF8_GETCHR(u8"蔡"): return 967;
+        case UTF8_GETCHR(u8"英"): return 968;
+        case UTF8_GETCHR(u8"侯"): return 969;
+        case UTF8_GETCHR(u8"令"): return 970;
+        case UTF8_GETCHR(u8"作"): return 971;
+        case UTF8_GETCHR(u8"熊"): return 972;
+        case UTF8_GETCHR(u8"控"): return 973;
+        case UTF8_GETCHR(u8"驴"): return 974;
+        case UTF8_GETCHR(u8"久"): return 975;
+        case UTF8_GETCHR(u8"绵"): return 976;
+        case UTF8_GETCHR(u8"斗"): return 977;
+        case UTF8_GETCHR(u8"贝"): return 978;
+        case UTF8_GETCHR(u8"劝"): return 979;
+        case UTF8_GETCHR(u8"忘"): return 980;
+        case UTF8_GETCHR(u8"烧"): return 981;
+        case UTF8_GETCHR(u8"肯"): return 982;
+        case UTF8_GETCHR(u8"炕"): return 983;
+        case UTF8_GETCHR(u8"般"): return 984;
+        case UTF8_GETCHR(u8"泰"): return 985;
+        case UTF8_GETCHR(u8"物"): return 986;
+        case UTF8_GETCHR(u8"栽"): return 987;
+        case UTF8_GETCHR(u8"喝"): return 988;
+        case UTF8_GETCHR(u8"甚"): return 989;
+        case UTF8_GETCHR(u8"铁"): return 990;
+        case UTF8_GETCHR(u8"拼"): return 991;
+        case UTF8_GETCHR(u8"军"): return 992;
+        case UTF8_GETCHR(u8"盾"): return 993;
+        case UTF8_GETCHR(u8"各"): return 994;
+        case UTF8_GETCHR(u8"都"): return 995;
+        case UTF8_GETCHR(u8"复"): return 996;
+        case UTF8_GETCHR(u8"值"): return 997;
+        case UTF8_GETCHR(u8"胳"): return 998;
+        case UTF8_GETCHR(u8"冷"): return 999;
+        case UTF8_GETCHR(u8"距"): return 1000;
+        case UTF8_GETCHR(u8"区"): return 1001;
+        case UTF8_GETCHR(u8"油"): return 1002;
+        case UTF8_GETCHR(u8"狼"): return 1003;
+        case UTF8_GETCHR(u8"翔"): return 1004;
+        case UTF8_GETCHR(u8"峰"): return 1005;
+        case UTF8_GETCHR(u8"化"): return 1006;
+        case UTF8_GETCHR(u8"蝇"): return 1007;
+        case UTF8_GETCHR(u8"攀"): return 1008;
+        case UTF8_GETCHR(u8"欲"): return 1009;
+        case UTF8_GETCHR(u8"丹"): return 1010;
+        case UTF8_GETCHR(u8"评"): return 1011;
+        case UTF8_GETCHR(u8"淡"): return 1012;
+        case UTF8_GETCHR(u8"往"): return 1013;
+        case UTF8_GETCHR(u8"凭"): return 1014;
+        case UTF8_GETCHR(u8"帽"): return 1015;
+        case UTF8_GETCHR(u8"轨"): return 1016;
+        case UTF8_GETCHR(u8"雄"): return 1017;
+        case UTF8_GETCHR(u8"丰"): return 1018;
+        case UTF8_GETCHR(u8"陡"): return 1019;
+        case UTF8_GETCHR(u8"蚕"): return 1020;
+        case UTF8_GETCHR(u8"按"): return 1021;
+        case UTF8_GETCHR(u8"符"): return 1022;
+        case UTF8_GETCHR(u8"抒"): return 1023;
+        case UTF8_GETCHR(u8"病"): return 1024;
+        case UTF8_GETCHR(u8"踢"): return 1025;
+        case UTF8_GETCHR(u8"代"): return 1026;
+        case UTF8_GETCHR(u8"血"): return 1027;
+        case UTF8_GETCHR(u8"寻"): return 1028;
+        case UTF8_GETCHR(u8"荡"): return 1029;
+        case UTF8_GETCHR(u8"尼"): return 1030;
+        case UTF8_GETCHR(u8"算"): return 1031;
+        case UTF8_GETCHR(u8"庆"): return 1032;
+        case UTF8_GETCHR(u8"菇"): return 1033;
+        case UTF8_GETCHR(u8"精"): return 1034;
+        case UTF8_GETCHR(u8"思"): return 1035;
+        case UTF8_GETCHR(u8"墓"): return 1036;
+        case UTF8_GETCHR(u8"竭"): return 1037;
+        case UTF8_GETCHR(u8"港"): return 1038;
+        case UTF8_GETCHR(u8"灯"): return 1039;
+        case UTF8_GETCHR(u8"虫"): return 1040;
+        case UTF8_GETCHR(u8"矣"): return 1041;
+        case UTF8_GETCHR(u8"驰"): return 1042;
+        case UTF8_GETCHR(u8"腊"): return 1043;
+        case UTF8_GETCHR(u8"难"): return 1044;
+        case UTF8_GETCHR(u8"桦"): return 1045;
+        case UTF8_GETCHR(u8"贸"): return 1046;
+        case UTF8_GETCHR(u8"颜"): return 1047;
+        case UTF8_GETCHR(u8"质"): return 1048;
+        case UTF8_GETCHR(u8"容"): return 1049;
+        case UTF8_GETCHR(u8"相"): return 1050;
+        case UTF8_GETCHR(u8"理"): return 1051;
+        case UTF8_GETCHR(u8"争"): return 1052;
+        case UTF8_GETCHR(u8"麦"): return 1053;
+        case UTF8_GETCHR(u8"娃"): return 1054;
+        case UTF8_GETCHR(u8"岭"): return 1055;
+        case UTF8_GETCHR(u8"谁"): return 1056;
+        case UTF8_GETCHR(u8"乎"): return 1057;
+        case UTF8_GETCHR(u8"慰"): return 1058;
+        case UTF8_GETCHR(u8"秘"): return 1059;
+        case UTF8_GETCHR(u8"番"): return 1060;
+        case UTF8_GETCHR(u8"蟹"): return 1061;
+        case UTF8_GETCHR(u8"局"): return 1062;
+        case UTF8_GETCHR(u8"披"): return 1063;
+        case UTF8_GETCHR(u8"郊"): return 1064;
+        case UTF8_GETCHR(u8"货"): return 1065;
+        case UTF8_GETCHR(u8"轰"): return 1066;
+        case UTF8_GETCHR(u8"矿"): return 1067;
+        case UTF8_GETCHR(u8"房"): return 1068;
+        case UTF8_GETCHR(u8"唉"): return 1069;
+        case UTF8_GETCHR(u8"狭"): return 1070;
+        case UTF8_GETCHR(u8"掀"): return 1071;
+        case UTF8_GETCHR(u8"玩"): return 1072;
+        case UTF8_GETCHR(u8"意"): return 1073;
+        case UTF8_GETCHR(u8"锤"): return 1074;
+        case UTF8_GETCHR(u8"僧"): return 1075;
+        case UTF8_GETCHR(u8"朗"): return 1076;
+        case UTF8_GETCHR(u8"跃"): return 1077;
+        case UTF8_GETCHR(u8"蚯"): return 1078;
+        case UTF8_GETCHR(u8"唤"): return 1079;
+        case UTF8_GETCHR(u8"琴"): return 1080;
+        case UTF8_GETCHR(u8"梁"): return 1081;
+        case UTF8_GETCHR(u8"微"): return 1082;
+        case UTF8_GETCHR(u8"碍"): return 1083;
+        case UTF8_GETCHR(u8"假"): return 1084;
+        case UTF8_GETCHR(u8"堡"): return 1085;
+        case UTF8_GETCHR(u8"福"): return 1086;
+        case UTF8_GETCHR(u8"遍"): return 1087;
+        case UTF8_GETCHR(u8"胎"): return 1088;
+        case UTF8_GETCHR(u8"游"): return 1089;
+        case UTF8_GETCHR(u8"驳"): return 1090;
+        case UTF8_GETCHR(u8"宏"): return 1091;
+        case UTF8_GETCHR(u8"陶"): return 1092;
+        case UTF8_GETCHR(u8"抄"): return 1093;
+        case UTF8_GETCHR(u8"辈"): return 1094;
+        case UTF8_GETCHR(u8"栏"): return 1095;
+        case UTF8_GETCHR(u8"预"): return 1096;
+        case UTF8_GETCHR(u8"究"): return 1097;
+        case UTF8_GETCHR(u8"烛"): return 1098;
+        case UTF8_GETCHR(u8"失"): return 1099;
+        case UTF8_GETCHR(u8"雕"): return 1100;
+        case UTF8_GETCHR(u8"厘"): return 1101;
+        case UTF8_GETCHR(u8"块"): return 1102;
+        case UTF8_GETCHR(u8"则"): return 1103;
+        case UTF8_GETCHR(u8"处"): return 1104;
+        case UTF8_GETCHR(u8"鹅"): return 1105;
+        case UTF8_GETCHR(u8"敌"): return 1106;
+        case UTF8_GETCHR(u8"震"): return 1107;
+        case UTF8_GETCHR(u8"牙"): return 1108;
+        case UTF8_GETCHR(u8"棵"): return 1109;
+        case UTF8_GETCHR(u8"吸"): return 1110;
+        case UTF8_GETCHR(u8"命"): return 1111;
+        case UTF8_GETCHR(u8"啊"): return 1112;
+        case UTF8_GETCHR(u8"非"): return 1113;
+        case UTF8_GETCHR(u8"益"): return 1114;
+        case UTF8_GETCHR(u8"炭"): return 1115;
+        case UTF8_GETCHR(u8"香"): return 1116;
+        case UTF8_GETCHR(u8"辐"): return 1117;
+        case UTF8_GETCHR(u8"旦"): return 1118;
+        case UTF8_GETCHR(u8"拿"): return 1119;
+        case UTF8_GETCHR(u8"履"): return 1120;
+        case UTF8_GETCHR(u8"喉"): return 1121;
+        case UTF8_GETCHR(u8"况"): return 1122;
+        case UTF8_GETCHR(u8"凡"): return 1123;
+        case UTF8_GETCHR(u8"瓷"): return 1124;
+        case UTF8_GETCHR(u8"转"): return 1125;
+        case UTF8_GETCHR(u8"抱"): return 1126;
+        case UTF8_GETCHR(u8"获"): return 1127;
+        case UTF8_GETCHR(u8"顺"): return 1128;
+        case UTF8_GETCHR(u8"制"): return 1129;
+        case UTF8_GETCHR(u8"萄"): return 1130;
+        case UTF8_GETCHR(u8"啼"): return 1131;
+        case UTF8_GETCHR(u8"贺"): return 1132;
+        case UTF8_GETCHR(u8"忽"): return 1133;
+        case UTF8_GETCHR(u8"访"): return 1134;
+        case UTF8_GETCHR(u8"鲸"): return 1135;
+        case UTF8_GETCHR(u8"赋"): return 1136;
+        case UTF8_GETCHR(u8"让"): return 1137;
+        case UTF8_GETCHR(u8"办"): return 1138;
+        case UTF8_GETCHR(u8"迎"): return 1139;
+        case UTF8_GETCHR(u8"爆"): return 1140;
+        case UTF8_GETCHR(u8"愿"): return 1141;
+        case UTF8_GETCHR(u8"订"): return 1142;
+        case UTF8_GETCHR(u8"府"): return 1143;
+        case UTF8_GETCHR(u8"降"): return 1144;
+        case UTF8_GETCHR(u8"准"): return 1145;
+        case UTF8_GETCHR(u8"星"): return 1146;
+        case UTF8_GETCHR(u8"额"): return 1147;
+        case UTF8_GETCHR(u8"剖"): return 1148;
+        case UTF8_GETCHR(u8"拖"): return 1149;
+        case UTF8_GETCHR(u8"月"): return 1150;
+        case UTF8_GETCHR(u8"主"): return 1151;
+        case UTF8_GETCHR(u8"奖"): return 1152;
+        case UTF8_GETCHR(u8"抗"): return 1153;
+        case UTF8_GETCHR(u8"苦"): return 1154;
+        case UTF8_GETCHR(u8"哭"): return 1155;
+        case UTF8_GETCHR(u8"软"): return 1156;
+        case UTF8_GETCHR(u8"硬"): return 1157;
+        case UTF8_GETCHR(u8"您"): return 1158;
+        case UTF8_GETCHR(u8"唯"): return 1159;
+        case UTF8_GETCHR(u8"机"): return 1160;
+        case UTF8_GETCHR(u8"厉"): return 1161;
+        case UTF8_GETCHR(u8"没"): return 1162;
+        case UTF8_GETCHR(u8"帘"): return 1163;
+        case UTF8_GETCHR(u8"塌"): return 1164;
+        case UTF8_GETCHR(u8"割"): return 1165;
+        case UTF8_GETCHR(u8"庙"): return 1166;
+        case UTF8_GETCHR(u8"哎"): return 1167;
+        case UTF8_GETCHR(u8"掌"): return 1168;
+        case UTF8_GETCHR(u8"王"): return 1169;
+        case UTF8_GETCHR(u8"改"): return 1170;
+        case UTF8_GETCHR(u8"箭"): return 1171;
+        case UTF8_GETCHR(u8"启"): return 1172;
+        case UTF8_GETCHR(u8"塑"): return 1173;
+        case UTF8_GETCHR(u8"晰"): return 1174;
+        case UTF8_GETCHR(u8"蚀"): return 1175;
+        case UTF8_GETCHR(u8"殖"): return 1176;
+        case UTF8_GETCHR(u8"蘑"): return 1177;
+        case UTF8_GETCHR(u8"男"): return 1178;
+        case UTF8_GETCHR(u8"卧"): return 1179;
+        case UTF8_GETCHR(u8"衍"): return 1180;
+        case UTF8_GETCHR(u8"告"): return 1181;
+        case UTF8_GETCHR(u8"拦"): return 1182;
+        case UTF8_GETCHR(u8"荒"): return 1183;
+        case UTF8_GETCHR(u8"艺"): return 1184;
+        case UTF8_GETCHR(u8"倒"): return 1185;
+        case UTF8_GETCHR(u8"略"): return 1186;
+        case UTF8_GETCHR(u8"凶"): return 1187;
+        case UTF8_GETCHR(u8"厨"): return 1188;
+        case UTF8_GETCHR(u8"肥"): return 1189;
+        case UTF8_GETCHR(u8"巩"): return 1190;
+        case UTF8_GETCHR(u8"惜"): return 1191;
+        case UTF8_GETCHR(u8"所"): return 1192;
+        case UTF8_GETCHR(u8"娇"): return 1193;
+        case UTF8_GETCHR(u8"跌"): return 1194;
+        case UTF8_GETCHR(u8"胸"): return 1195;
+        case UTF8_GETCHR(u8"浓"): return 1196;
+        case UTF8_GETCHR(u8"翅"): return 1197;
+        case UTF8_GETCHR(u8"旱"): return 1198;
+        case UTF8_GETCHR(u8"牧"): return 1199;
+        case UTF8_GETCHR(u8"黑"): return 1200;
+        case UTF8_GETCHR(u8"雌"): return 1201;
+        case UTF8_GETCHR(u8"殿"): return 1202;
+        case UTF8_GETCHR(u8"费"): return 1203;
+        case UTF8_GETCHR(u8"候"): return 1204;
+        case UTF8_GETCHR(u8"盗"): return 1205;
+        case UTF8_GETCHR(u8"典"): return 1206;
+        case UTF8_GETCHR(u8"礼"): return 1207;
+        case UTF8_GETCHR(u8"爱"): return 1208;
+        case UTF8_GETCHR(u8"财"): return 1209;
+        case UTF8_GETCHR(u8"盒"): return 1210;
+        case UTF8_GETCHR(u8"燥"): return 1211;
+        case UTF8_GETCHR(u8"泛"): return 1212;
+        case UTF8_GETCHR(u8"叉"): return 1213;
+        case UTF8_GETCHR(u8"粮"): return 1214;
+        case UTF8_GETCHR(u8"岳"): return 1215;
+        case UTF8_GETCHR(u8"拢"): return 1216;
+        case UTF8_GETCHR(u8"底"): return 1217;
+        case UTF8_GETCHR(u8"中"): return 1218;
+        case UTF8_GETCHR(u8"被"): return 1219;
+        case UTF8_GETCHR(u8"纳"): return 1220;
+        case UTF8_GETCHR(u8"箱"): return 1221;
+        case UTF8_GETCHR(u8"刹"): return 1222;
+        case UTF8_GETCHR(u8"规"): return 1223;
+        case UTF8_GETCHR(u8"惑"): return 1224;
+        case UTF8_GETCHR(u8"官"): return 1225;
+        case UTF8_GETCHR(u8"巨"): return 1226;
+        case UTF8_GETCHR(u8"父"): return 1227;
+        case UTF8_GETCHR(u8"磨"): return 1228;
+        case UTF8_GETCHR(u8"煮"): return 1229;
+        case UTF8_GETCHR(u8"程"): return 1230;
+        case UTF8_GETCHR(u8"盘"): return 1231;
+        case UTF8_GETCHR(u8"艇"): return 1232;
+        case UTF8_GETCHR(u8"孟"): return 1233;
+        case UTF8_GETCHR(u8"鸿"): return 1234;
+        case UTF8_GETCHR(u8"膨"): return 1235;
+        case UTF8_GETCHR(u8"裤"): return 1236;
+        case UTF8_GETCHR(u8"夕"): return 1237;
+        case UTF8_GETCHR(u8"吉"): return 1238;
+        case UTF8_GETCHR(u8"亮"): return 1239;
+        case UTF8_GETCHR(u8"共"): return 1240;
+        case UTF8_GETCHR(u8"伦"): return 1241;
+        case UTF8_GETCHR(u8"盈"): return 1242;
+        case UTF8_GETCHR(u8"农"): return 1243;
+        case UTF8_GETCHR(u8"黎"): return 1244;
+        case UTF8_GETCHR(u8"轮"): return 1245;
+        case UTF8_GETCHR(u8"雨"): return 1246;
+        case UTF8_GETCHR(u8"避"): return 1247;
+        case UTF8_GETCHR(u8"搞"): return 1248;
+        case UTF8_GETCHR(u8"醒"): return 1249;
+        case UTF8_GETCHR(u8"乡"): return 1250;
+        case UTF8_GETCHR(u8"备"): return 1251;
+        case UTF8_GETCHR(u8"丧"): return 1252;
+        case UTF8_GETCHR(u8"午"): return 1253;
+        case UTF8_GETCHR(u8"协"): return 1254;
+        case UTF8_GETCHR(u8"山"): return 1255;
+        case UTF8_GETCHR(u8"序"): return 1256;
+        case UTF8_GETCHR(u8"屁"): return 1257;
+        case UTF8_GETCHR(u8"棉"): return 1258;
+        case UTF8_GETCHR(u8"类"): return 1259;
+        case UTF8_GETCHR(u8"臣"): return 1260;
+        case UTF8_GETCHR(u8"吗"): return 1261;
+        case UTF8_GETCHR(u8"竹"): return 1262;
+        case UTF8_GETCHR(u8"解"): return 1263;
+        case UTF8_GETCHR(u8"盆"): return 1264;
+        case UTF8_GETCHR(u8"百"): return 1265;
+        case UTF8_GETCHR(u8"扎"): return 1266;
+        case UTF8_GETCHR(u8"赶"): return 1267;
+        case UTF8_GETCHR(u8"闯"): return 1268;
+        case UTF8_GETCHR(u8"好"): return 1269;
+        case UTF8_GETCHR(u8"比"): return 1270;
+        case UTF8_GETCHR(u8"众"): return 1271;
+        case UTF8_GETCHR(u8"刻"): return 1272;
+        case UTF8_GETCHR(u8"仪"): return 1273;
+        case UTF8_GETCHR(u8"锋"): return 1274;
+        case UTF8_GETCHR(u8"巷"): return 1275;
+        case UTF8_GETCHR(u8"龙"): return 1276;
+        case UTF8_GETCHR(u8"拆"): return 1277;
+        case UTF8_GETCHR(u8"躲"): return 1278;
+        case UTF8_GETCHR(u8"挨"): return 1279;
+        case UTF8_GETCHR(u8"堪"): return 1280;
+        case UTF8_GETCHR(u8"租"): return 1281;
+        case UTF8_GETCHR(u8"运"): return 1282;
+        case UTF8_GETCHR(u8"悦"): return 1283;
+        case UTF8_GETCHR(u8"嘴"): return 1284;
+        case UTF8_GETCHR(u8"齿"): return 1285;
+        case UTF8_GETCHR(u8"习"): return 1286;
+        case UTF8_GETCHR(u8"委"): return 1287;
+        case UTF8_GETCHR(u8"喘"): return 1288;
+        case UTF8_GETCHR(u8"证"): return 1289;
+        case UTF8_GETCHR(u8"豫"): return 1290;
+        case UTF8_GETCHR(u8"救"): return 1291;
+        case UTF8_GETCHR(u8"今"): return 1292;
+        case UTF8_GETCHR(u8"施"): return 1293;
+        case UTF8_GETCHR(u8"魏"): return 1294;
+        case UTF8_GETCHR(u8"差"): return 1295;
+        case UTF8_GETCHR(u8"牲"): return 1296;
+        case UTF8_GETCHR(u8"呈"): return 1297;
+        case UTF8_GETCHR(u8"盼"): return 1298;
+        case UTF8_GETCHR(u8"枣"): return 1299;
+        case UTF8_GETCHR(u8"院"): return 1300;
+        case UTF8_GETCHR(u8"冻"): return 1301;
+        case UTF8_GETCHR(u8"碳"): return 1302;
+        case UTF8_GETCHR(u8"足"): return 1303;
+        case UTF8_GETCHR(u8"肢"): return 1304;
+        case UTF8_GETCHR(u8"际"): return 1305;
+        case UTF8_GETCHR(u8"出"): return 1306;
+        case UTF8_GETCHR(u8"绍"): return 1307;
+        case UTF8_GETCHR(u8"怎"): return 1308;
+        case UTF8_GETCHR(u8"碌"): return 1309;
+        case UTF8_GETCHR(u8"而"): return 1310;
+        case UTF8_GETCHR(u8"佛"): return 1311;
+        case UTF8_GETCHR(u8"衣"): return 1312;
+        case UTF8_GETCHR(u8"鸽"): return 1313;
+        case UTF8_GETCHR(u8"爬"): return 1314;
+        case UTF8_GETCHR(u8"瞎"): return 1315;
+        case UTF8_GETCHR(u8"羞"): return 1316;
+        case UTF8_GETCHR(u8"滑"): return 1317;
+        case UTF8_GETCHR(u8"爸"): return 1318;
+        case UTF8_GETCHR(u8"呀"): return 1319;
+        case UTF8_GETCHR(u8"性"): return 1320;
+        case UTF8_GETCHR(u8"择"): return 1321;
+        case UTF8_GETCHR(u8"秦"): return 1322;
+        case UTF8_GETCHR(u8"俗"): return 1323;
+        case UTF8_GETCHR(u8"佩"): return 1324;
+        case UTF8_GETCHR(u8"砸"): return 1325;
+        case UTF8_GETCHR(u8"级"): return 1326;
+        case UTF8_GETCHR(u8"燃"): return 1327;
+        case UTF8_GETCHR(u8"倦"): return 1328;
+        case UTF8_GETCHR(u8"乔"): return 1329;
+        case UTF8_GETCHR(u8"尽"): return 1330;
+        case UTF8_GETCHR(u8"围"): return 1331;
+        case UTF8_GETCHR(u8"纱"): return 1332;
+        case UTF8_GETCHR(u8"熔"): return 1333;
+        case UTF8_GETCHR(u8"松"): return 1334;
+        case UTF8_GETCHR(u8"窄"): return 1335;
+        case UTF8_GETCHR(u8"惧"): return 1336;
+        case UTF8_GETCHR(u8"烦"): return 1337;
+        case UTF8_GETCHR(u8"莉"): return 1338;
+        case UTF8_GETCHR(u8"纹"): return 1339;
+        case UTF8_GETCHR(u8"纵"): return 1340;
+        case UTF8_GETCHR(u8"羽"): return 1341;
+        case UTF8_GETCHR(u8"结"): return 1342;
+        case UTF8_GETCHR(u8"拒"): return 1343;
+        case UTF8_GETCHR(u8"循"): return 1344;
+        case UTF8_GETCHR(u8"窗"): return 1345;
+        case UTF8_GETCHR(u8"净"): return 1346;
+        case UTF8_GETCHR(u8"找"): return 1347;
+        case UTF8_GETCHR(u8"乳"): return 1348;
+        case UTF8_GETCHR(u8"坊"): return 1349;
+        case UTF8_GETCHR(u8"似"): return 1350;
+        case UTF8_GETCHR(u8"蕾"): return 1351;
+        case UTF8_GETCHR(u8"核"): return 1352;
+        case UTF8_GETCHR(u8"西"): return 1353;
+        case UTF8_GETCHR(u8"滤"): return 1354;
+        case UTF8_GETCHR(u8"封"): return 1355;
+        case UTF8_GETCHR(u8"含"): return 1356;
+        case UTF8_GETCHR(u8"休"): return 1357;
+        case UTF8_GETCHR(u8"固"): return 1358;
+        case UTF8_GETCHR(u8"盲"): return 1359;
+        case UTF8_GETCHR(u8"峻"): return 1360;
+        case UTF8_GETCHR(u8"捞"): return 1361;
+        case UTF8_GETCHR(u8"牵"): return 1362;
+        case UTF8_GETCHR(u8"敬"): return 1363;
+        case UTF8_GETCHR(u8"萝"): return 1364;
+        case UTF8_GETCHR(u8"医"): return 1365;
+        case UTF8_GETCHR(u8"璃"): return 1366;
+        case UTF8_GETCHR(u8"扇"): return 1367;
+        case UTF8_GETCHR(u8"肝"): return 1368;
+        case UTF8_GETCHR(u8"死"): return 1369;
+        case UTF8_GETCHR(u8"草"): return 1370;
+        case UTF8_GETCHR(u8"馆"): return 1371;
+        case UTF8_GETCHR(u8"蛛"): return 1372;
+        case UTF8_GETCHR(u8"卫"): return 1373;
+        case UTF8_GETCHR(u8"蛮"): return 1374;
+        case UTF8_GETCHR(u8"驻"): return 1375;
+        case UTF8_GETCHR(u8"释"): return 1376;
+        case UTF8_GETCHR(u8"系"): return 1377;
+        case UTF8_GETCHR(u8"已"): return 1378;
+        case UTF8_GETCHR(u8"剂"): return 1379;
+        case UTF8_GETCHR(u8"偶"): return 1380;
+        case UTF8_GETCHR(u8"氮"): return 1381;
+        case UTF8_GETCHR(u8"式"): return 1382;
+        case UTF8_GETCHR(u8"疫"): return 1383;
+        case UTF8_GETCHR(u8"心"): return 1384;
+        case UTF8_GETCHR(u8"师"): return 1385;
+        case UTF8_GETCHR(u8"陕"): return 1386;
+        case UTF8_GETCHR(u8"亚"): return 1387;
+        case UTF8_GETCHR(u8"鉴"): return 1388;
+        case UTF8_GETCHR(u8"尤"): return 1389;
+        case UTF8_GETCHR(u8"希"): return 1390;
+        case UTF8_GETCHR(u8"杆"): return 1391;
+        case UTF8_GETCHR(u8"傻"): return 1392;
+        case UTF8_GETCHR(u8"饰"): return 1393;
+        case UTF8_GETCHR(u8"领"): return 1394;
+        case UTF8_GETCHR(u8"护"): return 1395;
+        case UTF8_GETCHR(u8"骄"): return 1396;
+        case UTF8_GETCHR(u8"钢"): return 1397;
+        case UTF8_GETCHR(u8"悠"): return 1398;
+        case UTF8_GETCHR(u8"趋"): return 1399;
+        case UTF8_GETCHR(u8"粉"): return 1400;
+        case UTF8_GETCHR(u8"胚"): return 1401;
+        case UTF8_GETCHR(u8"豆"): return 1402;
+        case UTF8_GETCHR(u8"续"): return 1403;
+        case UTF8_GETCHR(u8"估"): return 1404;
+        case UTF8_GETCHR(u8"召"): return 1405;
+        case UTF8_GETCHR(u8"嘿"): return 1406;
+        case UTF8_GETCHR(u8"嚼"): return 1407;
+        case UTF8_GETCHR(u8"虽"): return 1408;
+        case UTF8_GETCHR(u8"连"): return 1409;
+        case UTF8_GETCHR(u8"蚊"): return 1410;
+        case UTF8_GETCHR(u8"陪"): return 1411;
+        case UTF8_GETCHR(u8"婆"): return 1412;
+        case UTF8_GETCHR(u8"兆"): return 1413;
+        case UTF8_GETCHR(u8"蜡"): return 1414;
+        case UTF8_GETCHR(u8"舱"): return 1415;
+        case UTF8_GETCHR(u8"枫"): return 1416;
+        case UTF8_GETCHR(u8"玉"): return 1417;
+        case UTF8_GETCHR(u8"者"): return 1418;
+        case UTF8_GETCHR(u8"恒"): return 1419;
+        case UTF8_GETCHR(u8"吹"): return 1420;
+        case UTF8_GETCHR(u8"轿"): return 1421;
+        case UTF8_GETCHR(u8"事"): return 1422;
+        case UTF8_GETCHR(u8"悬"): return 1423;
+        case UTF8_GETCHR(u8"老"): return 1424;
+        case UTF8_GETCHR(u8"绣"): return 1425;
+        case UTF8_GETCHR(u8"耕"): return 1426;
+        case UTF8_GETCHR(u8"咱"): return 1427;
+        case UTF8_GETCHR(u8"贫"): return 1428;
+        case UTF8_GETCHR(u8"愈"): return 1429;
+        case UTF8_GETCHR(u8"武"): return 1430;
+        case UTF8_GETCHR(u8"尘"): return 1431;
+        case UTF8_GETCHR(u8"禁"): return 1432;
+        case UTF8_GETCHR(u8"稿"): return 1433;
+        case UTF8_GETCHR(u8"副"): return 1434;
+        case UTF8_GETCHR(u8"碱"): return 1435;
+        case UTF8_GETCHR(u8"园"): return 1436;
+        case UTF8_GETCHR(u8"拨"): return 1437;
+        case UTF8_GETCHR(u8"妇"): return 1438;
+        case UTF8_GETCHR(u8"低"): return 1439;
+        case UTF8_GETCHR(u8"彼"): return 1440;
+        case UTF8_GETCHR(u8"斥"): return 1441;
+        case UTF8_GETCHR(u8"芝"): return 1442;
+        case UTF8_GETCHR(u8"翼"): return 1443;
+        case UTF8_GETCHR(u8"朱"): return 1444;
+        case UTF8_GETCHR(u8"米"): return 1445;
+        case UTF8_GETCHR(u8"碎"): return 1446;
+        case UTF8_GETCHR(u8"眠"): return 1447;
+        case UTF8_GETCHR(u8"匹"): return 1448;
+        case UTF8_GETCHR(u8"阵"): return 1449;
+        case UTF8_GETCHR(u8"零"): return 1450;
+        case UTF8_GETCHR(u8"森"): return 1451;
+        case UTF8_GETCHR(u8"态"): return 1452;
+        case UTF8_GETCHR(u8"孩"): return 1453;
+        case UTF8_GETCHR(u8"起"): return 1454;
+        case UTF8_GETCHR(u8"耳"): return 1455;
+        case UTF8_GETCHR(u8"泼"): return 1456;
+        case UTF8_GETCHR(u8"灵"): return 1457;
+        case UTF8_GETCHR(u8"甩"): return 1458;
+        case UTF8_GETCHR(u8"罪"): return 1459;
+        case UTF8_GETCHR(u8"衫"): return 1460;
+        case UTF8_GETCHR(u8"征"): return 1461;
+        case UTF8_GETCHR(u8"奴"): return 1462;
+        case UTF8_GETCHR(u8"餐"): return 1463;
+        case UTF8_GETCHR(u8"元"): return 1464;
+        case UTF8_GETCHR(u8"调"): return 1465;
+        case UTF8_GETCHR(u8"人"): return 1466;
+        case UTF8_GETCHR(u8"七"): return 1467;
+        case UTF8_GETCHR(u8"砖"): return 1468;
+        case UTF8_GETCHR(u8"完"): return 1469;
+        case UTF8_GETCHR(u8"膀"): return 1470;
+        case UTF8_GETCHR(u8"梦"): return 1471;
+        case UTF8_GETCHR(u8"艾"): return 1472;
+        case UTF8_GETCHR(u8"贤"): return 1473;
+        case UTF8_GETCHR(u8"毅"): return 1474;
+        case UTF8_GETCHR(u8"赚"): return 1475;
+        case UTF8_GETCHR(u8"驼"): return 1476;
+        case UTF8_GETCHR(u8"恰"): return 1477;
+        case UTF8_GETCHR(u8"慕"): return 1478;
+        case UTF8_GETCHR(u8"借"): return 1479;
+        case UTF8_GETCHR(u8"附"): return 1480;
+        case UTF8_GETCHR(u8"吴"): return 1481;
+        case UTF8_GETCHR(u8"示"): return 1482;
+        case UTF8_GETCHR(u8"沿"): return 1483;
+        case UTF8_GETCHR(u8"压"): return 1484;
+        case UTF8_GETCHR(u8"撒"): return 1485;
+        case UTF8_GETCHR(u8"浆"): return 1486;
+        case UTF8_GETCHR(u8"绘"): return 1487;
+        case UTF8_GETCHR(u8"射"): return 1488;
+        case UTF8_GETCHR(u8"郭"): return 1489;
+        case UTF8_GETCHR(u8"肉"): return 1490;
+        case UTF8_GETCHR(u8"料"): return 1491;
+        case UTF8_GETCHR(u8"浑"): return 1492;
+        case UTF8_GETCHR(u8"霍"): return 1493;
+        case UTF8_GETCHR(u8"汪"): return 1494;
+        case UTF8_GETCHR(u8"介"): return 1495;
+        case UTF8_GETCHR(u8"催"): return 1496;
+        case UTF8_GETCHR(u8"导"): return 1497;
+        case UTF8_GETCHR(u8"驾"): return 1498;
+        case UTF8_GETCHR(u8"诗"): return 1499;
+        case UTF8_GETCHR(u8"盯"): return 1500;
+        case UTF8_GETCHR(u8"柔"): return 1501;
+        case UTF8_GETCHR(u8"拐"): return 1502;
+        case UTF8_GETCHR(u8"阁"): return 1503;
+        case UTF8_GETCHR(u8"为"): return 1504;
+        case UTF8_GETCHR(u8"刑"): return 1505;
+        case UTF8_GETCHR(u8"收"): return 1506;
+        case UTF8_GETCHR(u8"急"): return 1507;
+        case UTF8_GETCHR(u8"树"): return 1508;
+        case UTF8_GETCHR(u8"俱"): return 1509;
+        case UTF8_GETCHR(u8"阀"): return 1510;
+        case UTF8_GETCHR(u8"托"): return 1511;
+        case UTF8_GETCHR(u8"野"): return 1512;
+        case UTF8_GETCHR(u8"向"): return 1513;
+        case UTF8_GETCHR(u8"营"): return 1514;
+        case UTF8_GETCHR(u8"旅"): return 1515;
+        case UTF8_GETCHR(u8"抛"): return 1516;
+        case UTF8_GETCHR(u8"京"): return 1517;
+        case UTF8_GETCHR(u8"停"): return 1518;
+        case UTF8_GETCHR(u8"寒"): return 1519;
+        case UTF8_GETCHR(u8"躺"): return 1520;
+        case UTF8_GETCHR(u8"喷"): return 1521;
+        case UTF8_GETCHR(u8"药"): return 1522;
+        case UTF8_GETCHR(u8"哇"): return 1523;
+        case UTF8_GETCHR(u8"渡"): return 1524;
+        case UTF8_GETCHR(u8"喂"): return 1525;
+        case UTF8_GETCHR(u8"骤"): return 1526;
+        case UTF8_GETCHR(u8"未"): return 1527;
+        case UTF8_GETCHR(u8"兰"): return 1528;
+        case UTF8_GETCHR(u8"蔽"): return 1529;
+        case UTF8_GETCHR(u8"锁"): return 1530;
+        case UTF8_GETCHR(u8"是"): return 1531;
+        case UTF8_GETCHR(u8"唾"): return 1532;
+        case UTF8_GETCHR(u8"威"): return 1533;
+        case UTF8_GETCHR(u8"甲"): return 1534;
+        case UTF8_GETCHR(u8"礁"): return 1535;
+        case UTF8_GETCHR(u8"浩"): return 1536;
+        case UTF8_GETCHR(u8"徐"): return 1537;
+        case UTF8_GETCHR(u8"慢"): return 1538;
+        case UTF8_GETCHR(u8"套"): return 1539;
+        case UTF8_GETCHR(u8"味"): return 1540;
+        case UTF8_GETCHR(u8"譬"): return 1541;
+        case UTF8_GETCHR(u8"承"): return 1542;
+        case UTF8_GETCHR(u8"狱"): return 1543;
+        case UTF8_GETCHR(u8"界"): return 1544;
+        case UTF8_GETCHR(u8"响"): return 1545;
+        case UTF8_GETCHR(u8"域"): return 1546;
+        case UTF8_GETCHR(u8"肠"): return 1547;
+        case UTF8_GETCHR(u8"猫"): return 1548;
+        case UTF8_GETCHR(u8"阅"): return 1549;
+        case UTF8_GETCHR(u8"环"): return 1550;
+        case UTF8_GETCHR(u8"基"): return 1551;
+        case UTF8_GETCHR(u8"桌"): return 1552;
+        case UTF8_GETCHR(u8"石"): return 1553;
+        case UTF8_GETCHR(u8"梨"): return 1554;
+        case UTF8_GETCHR(u8"耸"): return 1555;
+        case UTF8_GETCHR(u8"载"): return 1556;
+        case UTF8_GETCHR(u8"危"): return 1557;
+        case UTF8_GETCHR(u8"尔"): return 1558;
+        case UTF8_GETCHR(u8"搏"): return 1559;
+        case UTF8_GETCHR(u8"喜"): return 1560;
+        case UTF8_GETCHR(u8"禽"): return 1561;
+        case UTF8_GETCHR(u8"看"): return 1562;
+        case UTF8_GETCHR(u8"岸"): return 1563;
+        case UTF8_GETCHR(u8"均"): return 1564;
+        case UTF8_GETCHR(u8"崇"): return 1565;
+        case UTF8_GETCHR(u8"烟"): return 1566;
+        case UTF8_GETCHR(u8"嘛"): return 1567;
+        case UTF8_GETCHR(u8"涂"): return 1568;
+        case UTF8_GETCHR(u8"萍"): return 1569;
+        case UTF8_GETCHR(u8"鲤"): return 1570;
+        case UTF8_GETCHR(u8"暑"): return 1571;
+        case UTF8_GETCHR(u8"策"): return 1572;
+        case UTF8_GETCHR(u8"余"): return 1573;
+        case UTF8_GETCHR(u8"混"): return 1574;
+        case UTF8_GETCHR(u8"决"): return 1575;
+        case UTF8_GETCHR(u8"揭"): return 1576;
+        case UTF8_GETCHR(u8"茄"): return 1577;
+        case UTF8_GETCHR(u8"桶"): return 1578;
+        case UTF8_GETCHR(u8"巧"): return 1579;
+        case UTF8_GETCHR(u8"蓝"): return 1580;
+        case UTF8_GETCHR(u8"讨"): return 1581;
+        case UTF8_GETCHR(u8"纪"): return 1582;
+        case UTF8_GETCHR(u8"世"): return 1583;
+        case UTF8_GETCHR(u8"页"): return 1584;
+        case UTF8_GETCHR(u8"姓"): return 1585;
+        case UTF8_GETCHR(u8"粘"): return 1586;
+        case UTF8_GETCHR(u8"弯"): return 1587;
+        case UTF8_GETCHR(u8"紫"): return 1588;
+        case UTF8_GETCHR(u8"刺"): return 1589;
+        case UTF8_GETCHR(u8"摸"): return 1590;
+        case UTF8_GETCHR(u8"流"): return 1591;
+        case UTF8_GETCHR(u8"尸"): return 1592;
+        case UTF8_GETCHR(u8"猛"): return 1593;
+        case UTF8_GETCHR(u8"银"): return 1594;
+        case UTF8_GETCHR(u8"顾"): return 1595;
+        case UTF8_GETCHR(u8"氏"): return 1596;
+        case UTF8_GETCHR(u8"姿"): return 1597;
+        case UTF8_GETCHR(u8"以"): return 1598;
+        case UTF8_GETCHR(u8"这"): return 1599;
+        case UTF8_GETCHR(u8"总"): return 1600;
+        case UTF8_GETCHR(u8"阻"): return 1601;
+        case UTF8_GETCHR(u8"戴"): return 1602;
+        case UTF8_GETCHR(u8"忌"): return 1603;
+        case UTF8_GETCHR(u8"汁"): return 1604;
+        case UTF8_GETCHR(u8"勤"): return 1605;
+        case UTF8_GETCHR(u8"抖"): return 1606;
+        case UTF8_GETCHR(u8"券"): return 1607;
+        case UTF8_GETCHR(u8"全"): return 1608;
+        case UTF8_GETCHR(u8"堆"): return 1609;
+        case UTF8_GETCHR(u8"匙"): return 1610;
+        case UTF8_GETCHR(u8"垂"): return 1611;
+        case UTF8_GETCHR(u8"鼠"): return 1612;
+        case UTF8_GETCHR(u8"鸣"): return 1613;
+        case UTF8_GETCHR(u8"须"): return 1614;
+        case UTF8_GETCHR(u8"歧"): return 1615;
+        case UTF8_GETCHR(u8"权"): return 1616;
+        case UTF8_GETCHR(u8"袁"): return 1617;
+        case UTF8_GETCHR(u8"素"): return 1618;
+        case UTF8_GETCHR(u8"影"): return 1619;
+        case UTF8_GETCHR(u8"你"): return 1620;
+        case UTF8_GETCHR(u8"上"): return 1621;
+        case UTF8_GETCHR(u8"论"): return 1622;
+        case UTF8_GETCHR(u8"片"): return 1623;
+        case UTF8_GETCHR(u8"报"): return 1624;
+        case UTF8_GETCHR(u8"夜"): return 1625;
+        case UTF8_GETCHR(u8"不"): return 1626;
+        case UTF8_GETCHR(u8"架"): return 1627;
+        case UTF8_GETCHR(u8"五"): return 1628;
+        case UTF8_GETCHR(u8"其"): return 1629;
+        case UTF8_GETCHR(u8"践"): return 1630;
+        case UTF8_GETCHR(u8"清"): return 1631;
+        case UTF8_GETCHR(u8"壶"): return 1632;
+        case UTF8_GETCHR(u8"吞"): return 1633;
+        case UTF8_GETCHR(u8"蚓"): return 1634;
+        case UTF8_GETCHR(u8"忍"): return 1635;
+        case UTF8_GETCHR(u8"账"): return 1636;
+        case UTF8_GETCHR(u8"念"): return 1637;
+        case UTF8_GETCHR(u8"研"): return 1638;
+        case UTF8_GETCHR(u8"屏"): return 1639;
+        case UTF8_GETCHR(u8"谷"): return 1640;
+        case UTF8_GETCHR(u8"丸"): return 1641;
+        case UTF8_GETCHR(u8"池"): return 1642;
+        case UTF8_GETCHR(u8"爽"): return 1643;
+        case UTF8_GETCHR(u8"督"): return 1644;
+        case UTF8_GETCHR(u8"绝"): return 1645;
+        case UTF8_GETCHR(u8"杨"): return 1646;
+        case UTF8_GETCHR(u8"柱"): return 1647;
+        case UTF8_GETCHR(u8"滚"): return 1648;
+        case UTF8_GETCHR(u8"定"): return 1649;
+        case UTF8_GETCHR(u8"剩"): return 1650;
+        case UTF8_GETCHR(u8"躁"): return 1651;
+        case UTF8_GETCHR(u8"阐"): return 1652;
+        case UTF8_GETCHR(u8"搜"): return 1653;
+        case UTF8_GETCHR(u8"牌"): return 1654;
+        case UTF8_GETCHR(u8"膊"): return 1655;
+        case UTF8_GETCHR(u8"肪"): return 1656;
+        case UTF8_GETCHR(u8"接"): return 1657;
+        case UTF8_GETCHR(u8"拉"): return 1658;
+        case UTF8_GETCHR(u8"壮"): return 1659;
+        case UTF8_GETCHR(u8"沟"): return 1660;
+        case UTF8_GETCHR(u8"姐"): return 1661;
+        case UTF8_GETCHR(u8"哟"): return 1662;
+        case UTF8_GETCHR(u8"耗"): return 1663;
+        case UTF8_GETCHR(u8"掠"): return 1664;
+        case UTF8_GETCHR(u8"受"): return 1665;
+        case UTF8_GETCHR(u8"掉"): return 1666;
+        case UTF8_GETCHR(u8"卜"): return 1667;
+        case UTF8_GETCHR(u8"赔"): return 1668;
+        case UTF8_GETCHR(u8"单"): return 1669;
+        case UTF8_GETCHR(u8"立"): return 1670;
+        case UTF8_GETCHR(u8"社"): return 1671;
+        case UTF8_GETCHR(u8"傍"): return 1672;
+        case UTF8_GETCHR(u8"丁"): return 1673;
+        case UTF8_GETCHR(u8"屋"): return 1674;
+        case UTF8_GETCHR(u8"次"): return 1675;
+        case UTF8_GETCHR(u8"枚"): return 1676;
+        case UTF8_GETCHR(u8"闷"): return 1677;
+        case UTF8_GETCHR(u8"朽"): return 1678;
+        case UTF8_GETCHR(u8"醇"): return 1679;
+        case UTF8_GETCHR(u8"嘉"): return 1680;
+        case UTF8_GETCHR(u8"笛"): return 1681;
+        case UTF8_GETCHR(u8"伴"): return 1682;
+        case UTF8_GETCHR(u8"陵"): return 1683;
+        case UTF8_GETCHR(u8"服"): return 1684;
+        case UTF8_GETCHR(u8"线"): return 1685;
+        case UTF8_GETCHR(u8"违"): return 1686;
+        case UTF8_GETCHR(u8"宅"): return 1687;
+        case UTF8_GETCHR(u8"颤"): return 1688;
+        case UTF8_GETCHR(u8"缝"): return 1689;
+        case UTF8_GETCHR(u8"李"): return 1690;
+        case UTF8_GETCHR(u8"竖"): return 1691;
+        case UTF8_GETCHR(u8"夏"): return 1692;
+        case UTF8_GETCHR(u8"筑"): return 1693;
+        case UTF8_GETCHR(u8"间"): return 1694;
+        case UTF8_GETCHR(u8"币"): return 1695;
+        case UTF8_GETCHR(u8"辅"): return 1696;
+        case UTF8_GETCHR(u8"辛"): return 1697;
+        case UTF8_GETCHR(u8"该"): return 1698;
+        case UTF8_GETCHR(u8"霉"): return 1699;
+        case UTF8_GETCHR(u8"捧"): return 1700;
+        case UTF8_GETCHR(u8"纽"): return 1701;
+        case UTF8_GETCHR(u8"臭"): return 1702;
+        case UTF8_GETCHR(u8"款"): return 1703;
+        case UTF8_GETCHR(u8"周"): return 1704;
+        case UTF8_GETCHR(u8"梢"): return 1705;
+        case UTF8_GETCHR(u8"警"): return 1706;
+        case UTF8_GETCHR(u8"塔"): return 1707;
+        case UTF8_GETCHR(u8"音"): return 1708;
+        case UTF8_GETCHR(u8"船"): return 1709;
+        case UTF8_GETCHR(u8"有"): return 1710;
+        case UTF8_GETCHR(u8"朝"): return 1711;
+        case UTF8_GETCHR(u8"适"): return 1712;
+        case UTF8_GETCHR(u8"认"): return 1713;
+        case UTF8_GETCHR(u8"缺"): return 1714;
+        case UTF8_GETCHR(u8"遭"): return 1715;
+        case UTF8_GETCHR(u8"党"): return 1716;
+        case UTF8_GETCHR(u8"倡"): return 1717;
+        case UTF8_GETCHR(u8"荣"): return 1718;
+        case UTF8_GETCHR(u8"瑞"): return 1719;
+        case UTF8_GETCHR(u8"弱"): return 1720;
+        case UTF8_GETCHR(u8"鳄"): return 1721;
+        case UTF8_GETCHR(u8"景"): return 1722;
+        case UTF8_GETCHR(u8"坑"): return 1723;
+        case UTF8_GETCHR(u8"和"): return 1724;
+        case UTF8_GETCHR(u8"厌"): return 1725;
+        case UTF8_GETCHR(u8"腔"): return 1726;
+        case UTF8_GETCHR(u8"廊"): return 1727;
+        case UTF8_GETCHR(u8"硫"): return 1728;
+        case UTF8_GETCHR(u8"布"): return 1729;
+        case UTF8_GETCHR(u8"亭"): return 1730;
+        case UTF8_GETCHR(u8"吐"): return 1731;
+        case UTF8_GETCHR(u8"橘"): return 1732;
+        case UTF8_GETCHR(u8"织"): return 1733;
+        case UTF8_GETCHR(u8"涨"): return 1734;
+        case UTF8_GETCHR(u8"靠"): return 1735;
+        case UTF8_GETCHR(u8"壁"): return 1736;
+        case UTF8_GETCHR(u8"贴"): return 1737;
+        case UTF8_GETCHR(u8"别"): return 1738;
+        case UTF8_GETCHR(u8"由"): return 1739;
+        case UTF8_GETCHR(u8"摩"): return 1740;
+        case UTF8_GETCHR(u8"寿"): return 1741;
+        case UTF8_GETCHR(u8"篮"): return 1742;
+        case UTF8_GETCHR(u8"闪"): return 1743;
+        case UTF8_GETCHR(u8"千"): return 1744;
+        case UTF8_GETCHR(u8"熬"): return 1745;
+        case UTF8_GETCHR(u8"鼓"): return 1746;
+        case UTF8_GETCHR(u8"眉"): return 1747;
+        case UTF8_GETCHR(u8"补"): return 1748;
+        case UTF8_GETCHR(u8"曲"): return 1749;
+        case UTF8_GETCHR(u8"胆"): return 1750;
+        case UTF8_GETCHR(u8"吻"): return 1751;
+        case UTF8_GETCHR(u8"称"): return 1752;
+        case UTF8_GETCHR(u8"仗"): return 1753;
+        case UTF8_GETCHR(u8"燕"): return 1754;
+        case UTF8_GETCHR(u8"针"): return 1755;
+        case UTF8_GETCHR(u8"感"): return 1756;
+        case UTF8_GETCHR(u8"劳"): return 1757;
+        case UTF8_GETCHR(u8"紧"): return 1758;
+        case UTF8_GETCHR(u8"毫"): return 1759;
+        case UTF8_GETCHR(u8"远"): return 1760;
+        case UTF8_GETCHR(u8"晴"): return 1761;
+        case UTF8_GETCHR(u8"裁"): return 1762;
+        case UTF8_GETCHR(u8"犬"): return 1763;
+        case UTF8_GETCHR(u8"联"): return 1764;
+        case UTF8_GETCHR(u8"鱼"): return 1765;
+        case UTF8_GETCHR(u8"朴"): return 1766;
+        case UTF8_GETCHR(u8"蔬"): return 1767;
+        case UTF8_GETCHR(u8"参"): return 1768;
+        case UTF8_GETCHR(u8"团"): return 1769;
+        case UTF8_GETCHR(u8"询"): return 1770;
+        case UTF8_GETCHR(u8"犹"): return 1771;
+        case UTF8_GETCHR(u8"群"): return 1772;
+        case UTF8_GETCHR(u8"曰"): return 1773;
+        case UTF8_GETCHR(u8"仙"): return 1774;
+        case UTF8_GETCHR(u8"够"): return 1775;
+        case UTF8_GETCHR(u8"自"): return 1776;
+        case UTF8_GETCHR(u8"艳"): return 1777;
+        case UTF8_GETCHR(u8"幸"): return 1778;
+        case UTF8_GETCHR(u8"战"): return 1779;
+        case UTF8_GETCHR(u8"残"): return 1780;
+        case UTF8_GETCHR(u8"内"): return 1781;
+        case UTF8_GETCHR(u8"止"): return 1782;
+        case UTF8_GETCHR(u8"枪"): return 1783;
+        case UTF8_GETCHR(u8"诚"): return 1784;
+        case UTF8_GETCHR(u8"录"): return 1785;
+        case UTF8_GETCHR(u8"磁"): return 1786;
+        case UTF8_GETCHR(u8"柏"): return 1787;
+        case UTF8_GETCHR(u8"延"): return 1788;
+        case UTF8_GETCHR(u8"盟"): return 1789;
+        case UTF8_GETCHR(u8"否"): return 1790;
+        case UTF8_GETCHR(u8"记"): return 1791;
+        case UTF8_GETCHR(u8"境"): return 1792;
+        case UTF8_GETCHR(u8"勇"): return 1793;
+        case UTF8_GETCHR(u8"瘦"): return 1794;
+        case UTF8_GETCHR(u8"防"): return 1795;
+        case UTF8_GETCHR(u8"剪"): return 1796;
+        case UTF8_GETCHR(u8"嫁"): return 1797;
+        case UTF8_GETCHR(u8"司"): return 1798;
+        case UTF8_GETCHR(u8"份"): return 1799;
+        case UTF8_GETCHR(u8"虾"): return 1800;
+        case UTF8_GETCHR(u8"宴"): return 1801;
+        case UTF8_GETCHR(u8"站"): return 1802;
+        case UTF8_GETCHR(u8"秀"): return 1803;
+        case UTF8_GETCHR(u8"量"): return 1804;
+        case UTF8_GETCHR(u8"卯"): return 1805;
+        case UTF8_GETCHR(u8"更"): return 1806;
+        case UTF8_GETCHR(u8"省"): return 1807;
+        case UTF8_GETCHR(u8"瘤"): return 1808;
+        case UTF8_GETCHR(u8"枯"): return 1809;
+        case UTF8_GETCHR(u8"招"): return 1810;
+        case UTF8_GETCHR(u8"娜"): return 1811;
+        case UTF8_GETCHR(u8"挂"): return 1812;
+        case UTF8_GETCHR(u8"田"): return 1813;
+        case UTF8_GETCHR(u8"喊"): return 1814;
+        case UTF8_GETCHR(u8"蜘"): return 1815;
+        case UTF8_GETCHR(u8"灭"): return 1816;
+        case UTF8_GETCHR(u8"撑"): return 1817;
+        case UTF8_GETCHR(u8"蝶"): return 1818;
+        case UTF8_GETCHR(u8"话"): return 1819;
+        case UTF8_GETCHR(u8"仔"): return 1820;
+        case UTF8_GETCHR(u8"伸"): return 1821;
+        case UTF8_GETCHR(u8"体"): return 1822;
+        case UTF8_GETCHR(u8"组"): return 1823;
+        case UTF8_GETCHR(u8"巴"): return 1824;
+        case UTF8_GETCHR(u8"己"): return 1825;
+        case UTF8_GETCHR(u8"求"): return 1826;
+        case UTF8_GETCHR(u8"恭"): return 1827;
+        case UTF8_GETCHR(u8"亲"): return 1828;
+        case UTF8_GETCHR(u8"稻"): return 1829;
+        case UTF8_GETCHR(u8"管"): return 1830;
+        case UTF8_GETCHR(u8"昆"): return 1831;
+        case UTF8_GETCHR(u8"果"): return 1832;
+        case UTF8_GETCHR(u8"娶"): return 1833;
+        case UTF8_GETCHR(u8"愧"): return 1834;
+        case UTF8_GETCHR(u8"呼"): return 1835;
+        case UTF8_GETCHR(u8"吾"): return 1836;
+        case UTF8_GETCHR(u8"沉"): return 1837;
+        case UTF8_GETCHR(u8"摄"): return 1838;
+        case UTF8_GETCHR(u8"庄"): return 1839;
+        case UTF8_GETCHR(u8"凑"): return 1840;
+        case UTF8_GETCHR(u8"透"): return 1841;
+        case UTF8_GETCHR(u8"冲"): return 1842;
+        case UTF8_GETCHR(u8"闹"): return 1843;
+        case UTF8_GETCHR(u8"忧"): return 1844;
+        case UTF8_GETCHR(u8"辑"): return 1845;
+        case UTF8_GETCHR(u8"良"): return 1846;
+        case UTF8_GETCHR(u8"倾"): return 1847;
+        case UTF8_GETCHR(u8"付"): return 1848;
+        case UTF8_GETCHR(u8"宗"): return 1849;
+        case UTF8_GETCHR(u8"肺"): return 1850;
+        case UTF8_GETCHR(u8"浇"): return 1851;
+        case UTF8_GETCHR(u8"给"): return 1852;
+        case UTF8_GETCHR(u8"简"): return 1853;
+        case UTF8_GETCHR(u8"售"): return 1854;
+        case UTF8_GETCHR(u8"菊"): return 1855;
+        case UTF8_GETCHR(u8"阳"): return 1856;
+        case UTF8_GETCHR(u8"亦"): return 1857;
+        case UTF8_GETCHR(u8"位"): return 1858;
+        case UTF8_GETCHR(u8"三"): return 1859;
+        case UTF8_GETCHR(u8"胁"): return 1860;
+        case UTF8_GETCHR(u8"僚"): return 1861;
+        case UTF8_GETCHR(u8"暗"): return 1862;
+        case UTF8_GETCHR(u8"哑"): return 1863;
+        case UTF8_GETCHR(u8"南"): return 1864;
+        case UTF8_GETCHR(u8"恢"): return 1865;
+        case UTF8_GETCHR(u8"辽"): return 1866;
+        case UTF8_GETCHR(u8"蛙"): return 1867;
+        case UTF8_GETCHR(u8"读"): return 1868;
+        case UTF8_GETCHR(u8"鲁"): return 1869;
+        case UTF8_GETCHR(u8"肿"): return 1870;
+        case UTF8_GETCHR(u8"谋"): return 1871;
+        case UTF8_GETCHR(u8"呢"): return 1872;
+        case UTF8_GETCHR(u8"穆"): return 1873;
+        case UTF8_GETCHR(u8"雷"): return 1874;
+        case UTF8_GETCHR(u8"密"): return 1875;
+        case UTF8_GETCHR(u8"扑"): return 1876;
+        case UTF8_GETCHR(u8"哲"): return 1877;
+        case UTF8_GETCHR(u8"殊"): return 1878;
+        case UTF8_GETCHR(u8"珊"): return 1879;
+        case UTF8_GETCHR(u8"酬"): return 1880;
+        case UTF8_GETCHR(u8"匈"): return 1881;
+        case UTF8_GETCHR(u8"培"): return 1882;
+        case UTF8_GETCHR(u8"蚁"): return 1883;
+        case UTF8_GETCHR(u8"漆"): return 1884;
+        case UTF8_GETCHR(u8"集"): return 1885;
+        case UTF8_GETCHR(u8"配"): return 1886;
+        case UTF8_GETCHR(u8"型"): return 1887;
+        case UTF8_GETCHR(u8"对"): return 1888;
+        case UTF8_GETCHR(u8"苗"): return 1889;
+        case UTF8_GETCHR(u8"肤"): return 1890;
+        case UTF8_GETCHR(u8"挖"): return 1891;
+        case UTF8_GETCHR(u8"罕"): return 1892;
+        case UTF8_GETCHR(u8"藏"): return 1893;
+        case UTF8_GETCHR(u8"齐"): return 1894;
+        case UTF8_GETCHR(u8"若"): return 1895;
+        case UTF8_GETCHR(u8"引"): return 1896;
+        case UTF8_GETCHR(u8"鹿"): return 1897;
+        case UTF8_GETCHR(u8"另"): return 1898;
+        case UTF8_GETCHR(u8"辱"): return 1899;
+        case UTF8_GETCHR(u8"桑"): return 1900;
+        case UTF8_GETCHR(u8"痕"): return 1901;
+        case UTF8_GETCHR(u8"关"): return 1902;
+        case UTF8_GETCHR(u8"洪"): return 1903;
+        case UTF8_GETCHR(u8"滥"): return 1904;
+        case UTF8_GETCHR(u8"同"): return 1905;
+        case UTF8_GETCHR(u8"脱"): return 1906;
+        case UTF8_GETCHR(u8"哩"): return 1907;
+        case UTF8_GETCHR(u8"年"): return 1908;
+        case UTF8_GETCHR(u8"风"): return 1909;
+        case UTF8_GETCHR(u8"肚"): return 1910;
+        case UTF8_GETCHR(u8"遇"): return 1911;
+        case UTF8_GETCHR(u8"芬"): return 1912;
+        case UTF8_GETCHR(u8"庭"): return 1913;
+        case UTF8_GETCHR(u8"懒"): return 1914;
+        case UTF8_GETCHR(u8"捉"): return 1915;
+        case UTF8_GETCHR(u8"墙"): return 1916;
+        case UTF8_GETCHR(u8"挽"): return 1917;
+        case UTF8_GETCHR(u8"邦"): return 1918;
+        case UTF8_GETCHR(u8"据"): return 1919;
+        case UTF8_GETCHR(u8"葡"): return 1920;
+        case UTF8_GETCHR(u8"姆"): return 1921;
+        case UTF8_GETCHR(u8"溜"): return 1922;
+        case UTF8_GETCHR(u8"天"): return 1923;
+        case UTF8_GETCHR(u8"儒"): return 1924;
+        case UTF8_GETCHR(u8"幅"): return 1925;
+        case UTF8_GETCHR(u8"欺"): return 1926;
+        case UTF8_GETCHR(u8"趣"): return 1927;
+        case UTF8_GETCHR(u8"缘"): return 1928;
+        case UTF8_GETCHR(u8"愉"): return 1929;
+        case UTF8_GETCHR(u8"何"): return 1930;
+        case UTF8_GETCHR(u8"海"): return 1931;
+        case UTF8_GETCHR(u8"滩"): return 1932;
+        case UTF8_GETCHR(u8"撕"): return 1933;
+        case UTF8_GETCHR(u8"症"): return 1934;
+        case UTF8_GETCHR(u8"埃"): return 1935;
+        case UTF8_GETCHR(u8"课"): return 1936;
+        case UTF8_GETCHR(u8"瞪"): return 1937;
+        case UTF8_GETCHR(u8"德"): return 1938;
+        case UTF8_GETCHR(u8"魂"): return 1939;
+        case UTF8_GETCHR(u8"孵"): return 1940;
+        case UTF8_GETCHR(u8"柳"): return 1941;
+        case UTF8_GETCHR(u8"隐"): return 1942;
+        case UTF8_GETCHR(u8"隶"): return 1943;
+        case UTF8_GETCHR(u8"手"): return 1944;
+        case UTF8_GETCHR(u8"悄"): return 1945;
+        case UTF8_GETCHR(u8"啡"): return 1946;
+        case UTF8_GETCHR(u8"淀"): return 1947;
+        case UTF8_GETCHR(u8"冒"): return 1948;
+        case UTF8_GETCHR(u8"裕"): return 1949;
+        case UTF8_GETCHR(u8"行"): return 1950;
+        case UTF8_GETCHR(u8"欠"): return 1951;
+        case UTF8_GETCHR(u8"援"): return 1952;
+        case UTF8_GETCHR(u8"始"): return 1953;
+        case UTF8_GETCHR(u8"皇"): return 1954;
+        case UTF8_GETCHR(u8"熟"): return 1955;
+        case UTF8_GETCHR(u8"杉"): return 1956;
+        case UTF8_GETCHR(u8"埋"): return 1957;
+        case UTF8_GETCHR(u8"鲜"): return 1958;
+        case UTF8_GETCHR(u8"振"): return 1959;
+        case UTF8_GETCHR(u8"伪"): return 1960;
+        case UTF8_GETCHR(u8"浦"): return 1961;
+        case UTF8_GETCHR(u8"隙"): return 1962;
+        case UTF8_GETCHR(u8"诸"): return 1963;
+        case UTF8_GETCHR(u8"直"): return 1964;
+        case UTF8_GETCHR(u8"用"): return 1965;
+        case UTF8_GETCHR(u8"悟"): return 1966;
+        case UTF8_GETCHR(u8"四"): return 1967;
+        case UTF8_GETCHR(u8"盛"): return 1968;
+        case UTF8_GETCHR(u8"皱"): return 1969;
+        case UTF8_GETCHR(u8"顶"): return 1970;
+        case UTF8_GETCHR(u8"较"): return 1971;
+        case UTF8_GETCHR(u8"艘"): return 1972;
+        case UTF8_GETCHR(u8"阿"): return 1973;
+        case UTF8_GETCHR(u8"训"): return 1974;
+        case UTF8_GETCHR(u8"抬"): return 1975;
+        case UTF8_GETCHR(u8"牺"): return 1976;
+        case UTF8_GETCHR(u8"煌"): return 1977;
+        case UTF8_GETCHR(u8"腺"): return 1978;
+        case UTF8_GETCHR(u8"倍"): return 1979;
+        case UTF8_GETCHR(u8"颁"): return 1980;
+        case UTF8_GETCHR(u8"腿"): return 1981;
+        case UTF8_GETCHR(u8"个"): return 1982;
+        case UTF8_GETCHR(u8"彩"): return 1983;
+        case UTF8_GETCHR(u8"进"): return 1984;
+        case UTF8_GETCHR(u8"键"): return 1985;
+        case UTF8_GETCHR(u8"仿"): return 1986;
+        case UTF8_GETCHR(u8"愚"): return 1987;
+        case UTF8_GETCHR(u8"钟"): return 1988;
+        case UTF8_GETCHR(u8"阴"): return 1989;
+        case UTF8_GETCHR(u8"频"): return 1990;
+        case UTF8_GETCHR(u8"睡"): return 1991;
+        case UTF8_GETCHR(u8"杀"): return 1992;
+        case UTF8_GETCHR(u8"助"): return 1993;
+        case UTF8_GETCHR(u8"郎"): return 1994;
+        case UTF8_GETCHR(u8"湾"): return 1995;
+        case UTF8_GETCHR(u8"龄"): return 1996;
+        case UTF8_GETCHR(u8"判"): return 1997;
+        case UTF8_GETCHR(u8"技"): return 1998;
+        case UTF8_GETCHR(u8"将"): return 1999;
+        case UTF8_GETCHR(u8"索"): return 2000;
+        case UTF8_GETCHR(u8"祖"): return 2001;
+        case UTF8_GETCHR(u8"教"): return 2002;
+        case UTF8_GETCHR(u8"绒"): return 2003;
+        case UTF8_GETCHR(u8"右"): return 2004;
+        case UTF8_GETCHR(u8"替"): return 2005;
+        case UTF8_GETCHR(u8"乃"): return 2006;
+        case UTF8_GETCHR(u8"肌"): return 2007;
+        case UTF8_GETCHR(u8"会"): return 2008;
+        case UTF8_GETCHR(u8"寂"): return 2009;
+        case UTF8_GETCHR(u8"耍"): return 2010;
+        case UTF8_GETCHR(u8"钻"): return 2011;
+        case UTF8_GETCHR(u8"挡"): return 2012;
+        case UTF8_GETCHR(u8"吟"): return 2013;
+        case UTF8_GETCHR(u8"验"): return 2014;
+        case UTF8_GETCHR(u8"又"): return 2015;
+        case UTF8_GETCHR(u8"太"): return 2016;
+        case UTF8_GETCHR(u8"措"): return 2017;
+        case UTF8_GETCHR(u8"拔"): return 2018;
+        case UTF8_GETCHR(u8"发"): return 2019;
+        case UTF8_GETCHR(u8"矛"): return 2020;
+        case UTF8_GETCHR(u8"长"): return 2021;
+        case UTF8_GETCHR(u8"嗅"): return 2022;
+        case UTF8_GETCHR(u8"棋"): return 2023;
+        case UTF8_GETCHR(u8"效"): return 2024;
+        case UTF8_GETCHR(u8"息"): return 2025;
+        case UTF8_GETCHR(u8"挑"): return 2026;
+        case UTF8_GETCHR(u8"兹"): return 2027;
+        case UTF8_GETCHR(u8"梅"): return 2028;
+        case UTF8_GETCHR(u8"纲"): return 2029;
+        case UTF8_GETCHR(u8"邓"): return 2030;
+        case UTF8_GETCHR(u8"航"): return 2031;
+        case UTF8_GETCHR(u8"创"): return 2032;
+        case UTF8_GETCHR(u8"纺"): return 2033;
+        case UTF8_GETCHR(u8"焦"): return 2034;
+        case UTF8_GETCHR(u8"熙"): return 2035;
+        case UTF8_GETCHR(u8"计"): return 2036;
+        case UTF8_GETCHR(u8"逻"): return 2037;
+        case UTF8_GETCHR(u8"鹰"): return 2038;
+        case UTF8_GETCHR(u8"绸"): return 2039;
+        case UTF8_GETCHR(u8"什"): return 2040;
+        case UTF8_GETCHR(u8"第"): return 2041;
+        case UTF8_GETCHR(u8"炸"): return 2042;
+        case UTF8_GETCHR(u8"误"): return 2043;
+        case UTF8_GETCHR(u8"把"): return 2044;
+        case UTF8_GETCHR(u8"捕"): return 2045;
+        case UTF8_GETCHR(u8"棍"): return 2046;
+        case UTF8_GETCHR(u8"萧"): return 2047;
+        case UTF8_GETCHR(u8"视"): return 2048;
+        case UTF8_GETCHR(u8"掘"): return 2049;
+        case UTF8_GETCHR(u8"古"): return 2050;
+        case UTF8_GETCHR(u8"浙"): return 2051;
+        case UTF8_GETCHR(u8"了"): return 2052;
+        case UTF8_GETCHR(u8"免"): return 2053;
+        case UTF8_GETCHR(u8"肩"): return 2054;
+        case UTF8_GETCHR(u8"籽"): return 2055;
+        case UTF8_GETCHR(u8"罚"): return 2056;
+        case UTF8_GETCHR(u8"御"): return 2057;
+        case UTF8_GETCHR(u8"选"): return 2058;
+        case UTF8_GETCHR(u8"头"): return 2059;
+        case UTF8_GETCHR(u8"亩"): return 2060;
+        case UTF8_GETCHR(u8"气"): return 2061;
+        case UTF8_GETCHR(u8"子"): return 2062;
+        case UTF8_GETCHR(u8"赤"): return 2063;
+        case UTF8_GETCHR(u8"潮"): return 2064;
+        case UTF8_GETCHR(u8"逝"): return 2065;
+        case UTF8_GETCHR(u8"达"): return 2066;
+        case UTF8_GETCHR(u8"肾"): return 2067;
+        case UTF8_GETCHR(u8"钙"): return 2068;
+        case UTF8_GETCHR(u8"摘"): return 2069;
+        case UTF8_GETCHR(u8"抵"): return 2070;
+        case UTF8_GETCHR(u8"掏"): return 2071;
+        case UTF8_GETCHR(u8"谢"): return 2072;
+        case UTF8_GETCHR(u8"鸟"): return 2073;
+        case UTF8_GETCHR(u8"钓"): return 2074;
+        case UTF8_GETCHR(u8"愣"): return 2075;
+        case UTF8_GETCHR(u8"赛"): return 2076;
+        case UTF8_GETCHR(u8"焰"): return 2077;
+        case UTF8_GETCHR(u8"通"): return 2078;
+        case UTF8_GETCHR(u8"充"): return 2079;
+        case UTF8_GETCHR(u8"藻"): return 2080;
+        case UTF8_GETCHR(u8"族"): return 2081;
+        case UTF8_GETCHR(u8"陆"): return 2082;
+        case UTF8_GETCHR(u8"累"): return 2083;
+        case UTF8_GETCHR(u8"苏"): return 2084;
+        case UTF8_GETCHR(u8"产"): return 2085;
+        case UTF8_GETCHR(u8"岂"): return 2086;
+        case UTF8_GETCHR(u8"削"): return 2087;
+        case UTF8_GETCHR(u8"默"): return 2088;
+        case UTF8_GETCHR(u8"叹"): return 2089;
+        case UTF8_GETCHR(u8"填"): return 2090;
+        case UTF8_GETCHR(u8"建"): return 2091;
+        case UTF8_GETCHR(u8"吨"): return 2092;
+        case UTF8_GETCHR(u8"佳"): return 2093;
+        case UTF8_GETCHR(u8"瞧"): return 2094;
+        case UTF8_GETCHR(u8"幼"): return 2095;
+        case UTF8_GETCHR(u8"赖"): return 2096;
+        case UTF8_GETCHR(u8"贡"): return 2097;
+        case UTF8_GETCHR(u8"室"): return 2098;
+        case UTF8_GETCHR(u8"硅"): return 2099;
+        case UTF8_GETCHR(u8"抽"): return 2100;
+        case UTF8_GETCHR(u8"商"): return 2101;
+        case UTF8_GETCHR(u8"凤"): return 2102;
+        case UTF8_GETCHR(u8"屑"): return 2103;
+        case UTF8_GETCHR(u8"贾"): return 2104;
+        case UTF8_GETCHR(u8"废"): return 2105;
+        case UTF8_GETCHR(u8"咸"): return 2106;
+        case UTF8_GETCHR(u8"井"): return 2107;
+        case UTF8_GETCHR(u8"钥"): return 2108;
+        case UTF8_GETCHR(u8"杂"): return 2109;
+        case UTF8_GETCHR(u8"俩"): return 2110;
+        case UTF8_GETCHR(u8"保"): return 2111;
+        case UTF8_GETCHR(u8"冰"): return 2112;
+        case UTF8_GETCHR(u8"俄"): return 2113;
+        case UTF8_GETCHR(u8"洛"): return 2114;
+        case UTF8_GETCHR(u8"约"): return 2115;
+        case UTF8_GETCHR(u8"力"): return 2116;
+        case UTF8_GETCHR(u8"奥"): return 2117;
+        case UTF8_GETCHR(u8"眨"): return 2118;
+        case UTF8_GETCHR(u8"奏"): return 2119;
+        case UTF8_GETCHR(u8"婶"): return 2120;
+        case UTF8_GETCHR(u8"离"): return 2121;
+        case UTF8_GETCHR(u8"盐"): return 2122;
+        case UTF8_GETCHR(u8"左"): return 2123;
+        case UTF8_GETCHR(u8"破"): return 2124;
+        case UTF8_GETCHR(u8"戈"): return 2125;
+        case UTF8_GETCHR(u8"昨"): return 2126;
+        case UTF8_GETCHR(u8"公"): return 2127;
+        case UTF8_GETCHR(u8"咕"): return 2128;
+        case UTF8_GETCHR(u8"散"): return 2129;
+        case UTF8_GETCHR(u8"注"): return 2130;
+        case UTF8_GETCHR(u8"洋"): return 2131;
+        case UTF8_GETCHR(u8"鞭"): return 2132;
+        case UTF8_GETCHR(u8"例"): return 2133;
+        case UTF8_GETCHR(u8"砂"): return 2134;
+        case UTF8_GETCHR(u8"班"): return 2135;
+        case UTF8_GETCHR(u8"妻"): return 2136;
+        case UTF8_GETCHR(u8"锡"): return 2137;
+        case UTF8_GETCHR(u8"八"): return 2138;
+        case UTF8_GETCHR(u8"矮"): return 2139;
+        case UTF8_GETCHR(u8"偿"): return 2140;
+        case UTF8_GETCHR(u8"舅"): return 2141;
+        case UTF8_GETCHR(u8"郁"): return 2142;
+        case UTF8_GETCHR(u8"因"): return 2143;
+        case UTF8_GETCHR(u8"版"): return 2144;
+        case UTF8_GETCHR(u8"秒"): return 2145;
+        case UTF8_GETCHR(u8"豹"): return 2146;
+        case UTF8_GETCHR(u8"丛"): return 2147;
+        case UTF8_GETCHR(u8"巡"): return 2148;
+        case UTF8_GETCHR(u8"责"): return 2149;
+        case UTF8_GETCHR(u8"劣"): return 2150;
+        case UTF8_GETCHR(u8"神"): return 2151;
+        case UTF8_GETCHR(u8"从"): return 2152;
+        case UTF8_GETCHR(u8"细"): return 2153;
+        case UTF8_GETCHR(u8"舞"): return 2154;
+        case UTF8_GETCHR(u8"寄"): return 2155;
+        case UTF8_GETCHR(u8"动"): return 2156;
+        case UTF8_GETCHR(u8"玻"): return 2157;
+        case UTF8_GETCHR(u8"罢"): return 2158;
+        case UTF8_GETCHR(u8"顷"): return 2159;
+        case UTF8_GETCHR(u8"成"): return 2160;
+        case UTF8_GETCHR(u8"着"): return 2161;
+        case UTF8_GETCHR(u8"蹈"): return 2162;
+        case UTF8_GETCHR(u8"桐"): return 2163;
+        case UTF8_GETCHR(u8"睛"): return 2164;
+        case UTF8_GETCHR(u8"女"): return 2165;
+        case UTF8_GETCHR(u8"毁"): return 2166;
+        case UTF8_GETCHR(u8"溉"): return 2167;
+        case UTF8_GETCHR(u8"季"): return 2168;
+        case UTF8_GETCHR(u8"叔"): return 2169;
+        case UTF8_GETCHR(u8"蒋"): return 2170;
+        case UTF8_GETCHR(u8"桃"): return 2171;
+        case UTF8_GETCHR(u8"兴"): return 2172;
+        case UTF8_GETCHR(u8"帕"): return 2173;
+        case UTF8_GETCHR(u8"富"): return 2174;
+        case UTF8_GETCHR(u8"凯"): return 2175;
+        case UTF8_GETCHR(u8"缓"): return 2176;
+        case UTF8_GETCHR(u8"挣"): return 2177;
+        case UTF8_GETCHR(u8"呵"): return 2178;
+        case UTF8_GETCHR(u8"薄"): return 2179;
+        case UTF8_GETCHR(u8"美"): return 2180;
+        case UTF8_GETCHR(u8"们"): return 2181;
+        case UTF8_GETCHR(u8"婚"): return 2182;
+        case UTF8_GETCHR(u8"脂"): return 2183;
+        case UTF8_GETCHR(u8"怒"): return 2184;
+        case UTF8_GETCHR(u8"噪"): return 2185;
+        case UTF8_GETCHR(u8"葛"): return 2186;
+        case UTF8_GETCHR(u8"伐"): return 2187;
+        case UTF8_GETCHR(u8"喇"): return 2188;
+        case UTF8_GETCHR(u8"妙"): return 2189;
+        case UTF8_GETCHR(u8"项"): return 2190;
+        case UTF8_GETCHR(u8"岁"): return 2191;
+        case UTF8_GETCHR(u8"授"): return 2192;
+        case UTF8_GETCHR(u8"短"): return 2193;
+        case UTF8_GETCHR(u8"旗"): return 2194;
+        case UTF8_GETCHR(u8"摊"): return 2195;
+        case UTF8_GETCHR(u8"使"): return 2196;
+        case UTF8_GETCHR(u8"渣"): return 2197;
+        case UTF8_GETCHR(u8"蚂"): return 2198;
+        case UTF8_GETCHR(u8"大"): return 2199;
+        case UTF8_GETCHR(u8"诱"): return 2200;
+        case UTF8_GETCHR(u8"当"): return 2201;
+        case UTF8_GETCHR(u8"损"): return 2202;
+        case UTF8_GETCHR(u8"致"): return 2203;
+        case UTF8_GETCHR(u8"占"): return 2204;
+        case UTF8_GETCHR(u8"临"): return 2205;
+        case UTF8_GETCHR(u8"墨"): return 2206;
+        case UTF8_GETCHR(u8"柄"): return 2207;
+        case UTF8_GETCHR(u8"实"): return 2208;
+        case UTF8_GETCHR(u8"信"): return 2209;
+        case UTF8_GETCHR(u8"尚"): return 2210;
+        case UTF8_GETCHR(u8"概"): return 2211;
+        case UTF8_GETCHR(u8"轻"): return 2212;
+        case UTF8_GETCHR(u8"白"): return 2213;
+        case UTF8_GETCHR(u8"宽"): return 2214;
+        case UTF8_GETCHR(u8"俺"): return 2215;
+        case UTF8_GETCHR(u8"能"): return 2216;
+        case UTF8_GETCHR(u8"帐"): return 2217;
+        case UTF8_GETCHR(u8"迹"): return 2218;
+        case UTF8_GETCHR(u8"铃"): return 2219;
+        case UTF8_GETCHR(u8"钠"): return 2220;
+        case UTF8_GETCHR(u8"耀"): return 2221;
+        case UTF8_GETCHR(u8"修"): return 2222;
+        case UTF8_GETCHR(u8"泽"): return 2223;
+        case UTF8_GETCHR(u8"曾"): return 2224;
+        case UTF8_GETCHR(u8"孕"): return 2225;
+        case UTF8_GETCHR(u8"品"): return 2226;
+        case UTF8_GETCHR(u8"哦"): return 2227;
+        case UTF8_GETCHR(u8"活"): return 2228;
+        case UTF8_GETCHR(u8"工"): return 2229;
+        case UTF8_GETCHR(u8"玛"): return 2230;
+        case UTF8_GETCHR(u8"碗"): return 2231;
+        case UTF8_GETCHR(u8"剥"): return 2232;
+        case UTF8_GETCHR(u8"像"): return 2233;
+        case UTF8_GETCHR(u8"印"): return 2234;
+        case UTF8_GETCHR(u8"誉"): return 2235;
+        case UTF8_GETCHR(u8"嫌"): return 2236;
+        case UTF8_GETCHR(u8"擦"): return 2237;
+        case UTF8_GETCHR(u8"涉"): return 2238;
+        case UTF8_GETCHR(u8"扔"): return 2239;
+        case UTF8_GETCHR(u8"演"): return 2240;
+        case UTF8_GETCHR(u8"藤"): return 2241;
+        case UTF8_GETCHR(u8"夷"): return 2242;
+        case UTF8_GETCHR(u8"云"): return 2243;
+        case UTF8_GETCHR(u8"楚"): return 2244;
+        case UTF8_GETCHR(u8"剧"): return 2245;
+        case UTF8_GETCHR(u8"摆"): return 2246;
+        case UTF8_GETCHR(u8"溶"): return 2247;
+        case UTF8_GETCHR(u8"独"): return 2248;
+        case UTF8_GETCHR(u8"花"): return 2249;
+        case UTF8_GETCHR(u8"价"): return 2250;
+        case UTF8_GETCHR(u8"逮"): return 2251;
+        case UTF8_GETCHR(u8"炮"): return 2252;
+        case UTF8_GETCHR(u8"具"): return 2253;
+        case UTF8_GETCHR(u8"崖"): return 2254;
+        case UTF8_GETCHR(u8"确"): return 2255;
+        case UTF8_GETCHR(u8"绩"): return 2256;
+        case UTF8_GETCHR(u8"原"): return 2257;
+        case UTF8_GETCHR(u8"撤"): return 2258;
+        case UTF8_GETCHR(u8"绿"): return 2259;
+        case UTF8_GETCHR(u8"缩"): return 2260;
+        case UTF8_GETCHR(u8"链"): return 2261;
+        case UTF8_GETCHR(u8"械"): return 2262;
+        case UTF8_GETCHR(u8"遂"): return 2263;
+        case UTF8_GETCHR(u8"晨"): return 2264;
+        case UTF8_GETCHR(u8"迟"): return 2265;
+        case UTF8_GETCHR(u8"晚"): return 2266;
+        case UTF8_GETCHR(u8"查"): return 2267;
+        case UTF8_GETCHR(u8"股"): return 2268;
+        case UTF8_GETCHR(u8"提"): return 2269;
+        case UTF8_GETCHR(u8"应"): return 2270;
+        case UTF8_GETCHR(u8"件"): return 2271;
+        case UTF8_GETCHR(u8"优"): return 2272;
+        case UTF8_GETCHR(u8"诺"): return 2273;
+        case UTF8_GETCHR(u8"歪"): return 2274;
+        case UTF8_GETCHR(u8"乏"): return 2275;
+        case UTF8_GETCHR(u8"曹"): return 2276;
+        case UTF8_GETCHR(u8"拾"): return 2277;
+        case UTF8_GETCHR(u8"畜"): return 2278;
+        case UTF8_GETCHR(u8"遵"): return 2279;
+        case UTF8_GETCHR(u8"仇"): return 2280;
+        case UTF8_GETCHR(u8"增"): return 2281;
+        case UTF8_GETCHR(u8"塘"): return 2282;
+        case UTF8_GETCHR(u8"刷"): return 2283;
+        case UTF8_GETCHR(u8"胀"): return 2284;
+        case UTF8_GETCHR(u8"奔"): return 2285;
+        case UTF8_GETCHR(u8"伟"): return 2286;
+        case UTF8_GETCHR(u8"现"): return 2287;
+        case UTF8_GETCHR(u8"逃"): return 2288;
+        case UTF8_GETCHR(u8"潜"): return 2289;
+        case UTF8_GETCHR(u8"毒"): return 2290;
+        case UTF8_GETCHR(u8"隔"): return 2291;
+        case UTF8_GETCHR(u8"永"): return 2292;
+        case UTF8_GETCHR(u8"斑"): return 2293;
+        case UTF8_GETCHR(u8"罗"): return 2294;
+        case UTF8_GETCHR(u8"断"): return 2295;
+        case UTF8_GETCHR(u8"塞"): return 2296;
+        case UTF8_GETCHR(u8"随"): return 2297;
+        case UTF8_GETCHR(u8"乐"): return 2298;
+        case UTF8_GETCHR(u8"善"): return 2299;
+        case UTF8_GETCHR(u8"色"): return 2300;
+        case UTF8_GETCHR(u8"堵"): return 2301;
+        case UTF8_GETCHR(u8"姑"): return 2302;
+        case UTF8_GETCHR(u8"忙"): return 2303;
+        case UTF8_GETCHR(u8"郑"): return 2304;
+        case UTF8_GETCHR(u8"戚"): return 2305;
+        case UTF8_GETCHR(u8"并"): return 2306;
+        case UTF8_GETCHR(u8"赌"): return 2307;
+        case UTF8_GETCHR(u8"奈"): return 2308;
+        case UTF8_GETCHR(u8"狂"): return 2309;
+        case UTF8_GETCHR(u8"雁"): return 2310;
+        case UTF8_GETCHR(u8"扯"): return 2311;
+        case UTF8_GETCHR(u8"甘"): return 2312;
+        case UTF8_GETCHR(u8"放"): return 2313;
+        case UTF8_GETCHR(u8"氨"): return 2314;
+        case UTF8_GETCHR(u8"覆"): return 2315;
+        case UTF8_GETCHR(u8"础"): return 2316;
+        case UTF8_GETCHR(u8"胞"): return 2317;
+        case UTF8_GETCHR(u8"冠"): return 2318;
+        case UTF8_GETCHR(u8"逐"): return 2319;
+        case UTF8_GETCHR(u8"玫"): return 2320;
+        case UTF8_GETCHR(u8"民"): return 2321;
+        case UTF8_GETCHR(u8"徽"): return 2322;
+        case UTF8_GETCHR(u8"望"): return 2323;
+        case UTF8_GETCHR(u8"言"): return 2324;
+        case UTF8_GETCHR(u8"颈"): return 2325;
+        case UTF8_GETCHR(u8"晃"): return 2326;
+        case UTF8_GETCHR(u8"哀"): return 2327;
+        case UTF8_GETCHR(u8"脸"): return 2328;
+        case UTF8_GETCHR(u8"疗"): return 2329;
+        case UTF8_GETCHR(u8"广"): return 2330;
+        case UTF8_GETCHR(u8"闭"): return 2331;
+        case UTF8_GETCHR(u8"鼻"): return 2332;
+        case UTF8_GETCHR(u8"泥"): return 2333;
+        case UTF8_GETCHR(u8"露"): return 2334;
+        case UTF8_GETCHR(u8"册"): return 2335;
+        case UTF8_GETCHR(u8"车"): return 2336;
+        case UTF8_GETCHR(u8"腾"): return 2337;
+        case UTF8_GETCHR(u8"议"): return 2338;
+        case UTF8_GETCHR(u8"形"): return 2339;
+        case UTF8_GETCHR(u8"坝"): return 2340;
+        case UTF8_GETCHR(u8"纷"): return 2341;
+        case UTF8_GETCHR(u8"再"): return 2342;
+        case UTF8_GETCHR(u8"户"): return 2343;
+        case UTF8_GETCHR(u8"硝"): return 2344;
+        case UTF8_GETCHR(u8"献"): return 2345;
+        case UTF8_GETCHR(u8"鹤"): return 2346;
+        case UTF8_GETCHR(u8"练"): return 2347;
+        case UTF8_GETCHR(u8"劲"): return 2348;
+        case UTF8_GETCHR(u8"捏"): return 2349;
+        case UTF8_GETCHR(u8"电"): return 2350;
+        case UTF8_GETCHR(u8"杯"): return 2351;
+        case UTF8_GETCHR(u8"坐"): return 2352;
+        case UTF8_GETCHR(u8"萨"): return 2353;
+        case UTF8_GETCHR(u8"岩"): return 2354;
+        case UTF8_GETCHR(u8"他"): return 2355;
+        case UTF8_GETCHR(u8"彻"): return 2356;
+        case UTF8_GETCHR(u8"炎"): return 2357;
+        case UTF8_GETCHR(u8"疾"): return 2358;
+        case UTF8_GETCHR(u8"村"): return 2359;
+        case UTF8_GETCHR(u8"桥"): return 2360;
+        case UTF8_GETCHR(u8"猪"): return 2361;
+        case UTF8_GETCHR(u8"庞"): return 2362;
+        case UTF8_GETCHR(u8"员"): return 2363;
+        case UTF8_GETCHR(u8"徒"): return 2364;
+        case UTF8_GETCHR(u8"廉"): return 2365;
+        case UTF8_GETCHR(u8"登"): return 2366;
+        case UTF8_GETCHR(u8"县"): return 2367;
+        case UTF8_GETCHR(u8"汽"): return 2368;
+        case UTF8_GETCHR(u8"堤"): return 2369;
+        case UTF8_GETCHR(u8"测"): return 2370;
+        case UTF8_GETCHR(u8"多"): return 2371;
+        case UTF8_GETCHR(u8"除"): return 2372;
+        case UTF8_GETCHR(u8"器"): return 2373;
+        case UTF8_GETCHR(u8"髓"): return 2374;
+        case UTF8_GETCHR(u8"儿"): return 2375;
+        case UTF8_GETCHR(u8"期"): return 2376;
+        case UTF8_GETCHR(u8"淋"): return 2377;
+        case UTF8_GETCHR(u8"宁"): return 2378;
+        case UTF8_GETCHR(u8"锅"): return 2379;
+        case UTF8_GETCHR(u8"表"): return 2380;
+        case UTF8_GETCHR(u8"蝴"): return 2381;
+        case UTF8_GETCHR(u8"字"): return 2382;
+        case UTF8_GETCHR(u8"夹"): return 2383;
+        case UTF8_GETCHR(u8"妈"): return 2384;
+        case UTF8_GETCHR(u8"罩"): return 2385;
+        case UTF8_GETCHR(u8"弄"): return 2386;
+        case UTF8_GETCHR(u8"它"): return 2387;
+        case UTF8_GETCHR(u8"疆"): return 2388;
+        case UTF8_GETCHR(u8"重"): return 2389;
+        case UTF8_GETCHR(u8"勃"): return 2390;
+        case UTF8_GETCHR(u8"猴"): return 2391;
+        case UTF8_GETCHR(u8"科"): return 2392;
+        case UTF8_GETCHR(u8"请"): return 2393;
+        case UTF8_GETCHR(u8"皮"): return 2394;
+        case UTF8_GETCHR(u8"耐"): return 2395;
+        case UTF8_GETCHR(u8"飞"): return 2396;
+        case UTF8_GETCHR(u8"华"): return 2397;
+        case UTF8_GETCHR(u8"纠"): return 2398;
+        case UTF8_GETCHR(u8"尝"): return 2399;
+        case UTF8_GETCHR(u8"画"): return 2400;
+        case UTF8_GETCHR(u8"推"): return 2401;
+        case UTF8_GETCHR(u8"溢"): return 2402;
+        case UTF8_GETCHR(u8"泄"): return 2403;
+        case UTF8_GETCHR(u8"葵"): return 2404;
+        case UTF8_GETCHR(u8"媒"): return 2405;
+        case UTF8_GETCHR(u8"汇"): return 2406;
+        case UTF8_GETCHR(u8"台"): return 2407;
+        case UTF8_GETCHR(u8"极"): return 2408;
+        case UTF8_GETCHR(u8"钱"): return 2409;
+        case UTF8_GETCHR(u8"棕"): return 2410;
+        case UTF8_GETCHR(u8"癌"): return 2411;
+        case UTF8_GETCHR(u8"要"): return 2412;
+        case UTF8_GETCHR(u8"两"): return 2413;
+        case UTF8_GETCHR(u8"趾"): return 2414;
+        case UTF8_GETCHR(u8"穷"): return 2415;
+        case UTF8_GETCHR(u8"触"): return 2416;
+        case UTF8_GETCHR(u8"卢"): return 2417;
+        case UTF8_GETCHR(u8"溪"): return 2418;
+        case UTF8_GETCHR(u8"昏"): return 2419;
+        case UTF8_GETCHR(u8"静"): return 2420;
+        case UTF8_GETCHR(u8"险"): return 2421;
+        case UTF8_GETCHR(u8"翻"): return 2422;
+        case UTF8_GETCHR(u8"侵"): return 2423;
+        case UTF8_GETCHR(u8"身"): return 2424;
+        case UTF8_GETCHR(u8"貌"): return 2425;
+        case UTF8_GETCHR(u8"媳"): return 2426;
+        case UTF8_GETCHR(u8"席"): return 2427;
+        case UTF8_GETCHR(u8"唇"): return 2428;
+        case UTF8_GETCHR(u8"甜"): return 2429;
+        case UTF8_GETCHR(u8"遣"): return 2430;
+        case UTF8_GETCHR(u8"裹"): return 2431;
+        case UTF8_GETCHR(u8"数"): return 2432;
+        case UTF8_GETCHR(u8"拓"): return 2433;
+        case UTF8_GETCHR(u8"十"): return 2434;
+        case UTF8_GETCHR(u8"赵"): return 2435;
+        case UTF8_GETCHR(u8"浸"): return 2436;
+        case UTF8_GETCHR(u8"待"): return 2437;
+        case UTF8_GETCHR(u8"啦"): return 2438;
+        case UTF8_GETCHR(u8"饲"): return 2439;
+        case UTF8_GETCHR(u8"养"): return 2440;
+        case UTF8_GETCHR(u8"逸"): return 2441;
+        case UTF8_GETCHR(u8"的"): return 2442;
+        case UTF8_GETCHR(u8"洒"): return 2443;
+        case UTF8_GETCHR(u8"操"): return 2444;
+        case UTF8_GETCHR(u8"迫"): return 2445;
+        case UTF8_GETCHR(u8"罐"): return 2446;
+        case UTF8_GETCHR(u8"乱"): return 2447;
+        case UTF8_GETCHR(u8"绳"): return 2448;
+        case UTF8_GETCHR(u8"弦"): return 2449;
+        case UTF8_GETCHR(u8"跨"): return 2450;
+        case UTF8_GETCHR(u8"锦"): return 2451;
+        case UTF8_GETCHR(u8"贮"): return 2452;
+        case UTF8_GETCHR(u8"执"): return 2453;
+        case UTF8_GETCHR(u8"敢"): return 2454;
+        case UTF8_GETCHR(u8"截"): return 2455;
+        case UTF8_GETCHR(u8"丑"): return 2456;
+        case UTF8_GETCHR(u8"枕"): return 2457;
+        case UTF8_GETCHR(u8"敦"): return 2458;
+        case UTF8_GETCHR(u8"愁"): return 2459;
+        case UTF8_GETCHR(u8"笑"): return 2460;
+        case UTF8_GETCHR(u8"任"): return 2461;
+        case UTF8_GETCHR(u8"纸"): return 2462;
+        case UTF8_GETCHR(u8"冬"): return 2463;
+        case UTF8_GETCHR(u8"柴"): return 2464;
+        case UTF8_GETCHR(u8"抑"): return 2465;
+        case UTF8_GETCHR(u8"奉"): return 2466;
+        case UTF8_GETCHR(u8"江"): return 2467;
+        case UTF8_GETCHR(u8"帮"): return 2468;
+        case UTF8_GETCHR(u8"书"): return 2469;
+        case UTF8_GETCHR(u8"市"): return 2470;
+        case UTF8_GETCHR(u8"激"): return 2471;
+        case UTF8_GETCHR(u8"忠"): return 2472;
+        case UTF8_GETCHR(u8"鞋"): return 2473;
+        case UTF8_GETCHR(u8"淮"): return 2474;
+        case UTF8_GETCHR(u8"听"): return 2475;
+        case UTF8_GETCHR(u8"菜"): return 2476;
+        case UTF8_GETCHR(u8"迈"): return 2477;
+        case UTF8_GETCHR(u8"涛"): return 2478;
+        case UTF8_GETCHR(u8"芦"): return 2479;
+        case UTF8_GETCHR(u8"邮"): return 2480;
+        case UTF8_GETCHR(u8"鹊"): return 2481;
+        case UTF8_GETCHR(u8"象"): return 2482;
+        case UTF8_GETCHR(u8"槽"): return 2483;
+        case UTF8_GETCHR(u8"浪"): return 2484;
+        case UTF8_GETCHR(u8"屈"): return 2485;
+        case UTF8_GETCHR(u8"食"): return 2486;
+        case UTF8_GETCHR(u8"晓"): return 2487;
+        case UTF8_GETCHR(u8"蒙"): return 2488;
+        case UTF8_GETCHR(u8"归"): return 2489;
+        case UTF8_GETCHR(u8"蛋"): return 2490;
+        case UTF8_GETCHR(u8"检"): return 2491;
+        case UTF8_GETCHR(u8"惩"): return 2492;
+        case UTF8_GETCHR(u8"橡"): return 2493;
+        case UTF8_GETCHR(u8"反"): return 2494;
+        case UTF8_GETCHR(u8"飘"): return 2495;
+        case UTF8_GETCHR(u8"末"): return 2496;
+        case UTF8_GETCHR(u8"瓦"): return 2497;
+        case UTF8_GETCHR(u8"贵"): return 2498;
+        case UTF8_GETCHR(u8"趟"): return 2499;
+        case UTF8_GETCHR(u8"亡"): return 2500;
+        case UTF8_GETCHR(u8"哼"): return 2501;
+        case UTF8_GETCHR(u8"得"): return 2502;
+        case UTF8_GETCHR(u8"廷"): return 2503;
+        case UTF8_GETCHR(u8"越"): return 2504;
+        case UTF8_GETCHR(u8"契"): return 2505;
+        case UTF8_GETCHR(u8"砍"): return 2506;
+        case UTF8_GETCHR(u8"存"): return 2507;
+        case UTF8_GETCHR(u8"胜"): return 2508;
+        case UTF8_GETCHR(u8"伯"): return 2509;
+        case UTF8_GETCHR(u8"薯"): return 2510;
+        case UTF8_GETCHR(u8"温"): return 2511;
+        case UTF8_GETCHR(u8"慧"): return 2512;
+        case UTF8_GETCHR(u8"厂"): return 2513;
+        case UTF8_GETCHR(u8"即"): return 2514;
+        case UTF8_GETCHR(u8"嚷"): return 2515;
+        case UTF8_GETCHR(u8"日"): return 2516;
+        case UTF8_GETCHR(u8"监"): return 2517;
+        case UTF8_GETCHR(u8"舒"): return 2518;
+        case UTF8_GETCHR(u8"嘱"): return 2519;
+        case UTF8_GETCHR(u8"婴"): return 2520;
+        case UTF8_GETCHR(u8"剑"): return 2521;
+        case UTF8_GETCHR(u8"沙"): return 2522;
+        case UTF8_GETCHR(u8"网"): return 2523;
+        case UTF8_GETCHR(u8"设"): return 2524;
+        case UTF8_GETCHR(u8"羚"): return 2525;
+        case UTF8_GETCHR(u8"茎"): return 2526;
+        case UTF8_GETCHR(u8"恶"): return 2527;
+        case UTF8_GETCHR(u8"编"): return 2528;
+        case UTF8_GETCHR(u8"摔"): return 2529;
+        case UTF8_GETCHR(u8"氢"): return 2530;
+        case UTF8_GETCHR(u8"马"): return 2531;
+        case UTF8_GETCHR(u8"经"): return 2532;
+        case UTF8_GETCHR(u8"疯"): return 2533;
+        case UTF8_GETCHR(u8"豪"): return 2534;
+        case UTF8_GETCHR(u8"尖"): return 2535;
+        case UTF8_GETCHR(u8"阔"): return 2536;
+        case UTF8_GETCHR(u8"维"): return 2537;
+        case UTF8_GETCHR(u8"爷"): return 2538;
+        case UTF8_GETCHR(u8"扭"): return 2539;
+        case UTF8_GETCHR(u8"蓄"): return 2540;
+        case UTF8_GETCHR(u8"供"): return 2541;
+        case UTF8_GETCHR(u8"篇"): return 2542;
+        case UTF8_GETCHR(u8"贪"): return 2543;
+        case UTF8_GETCHR(u8"知"): return 2544;
+        case UTF8_GETCHR(u8"库"): return 2545;
+        case UTF8_GETCHR(u8"潭"): return 2546;
+        case UTF8_GETCHR(u8"历"): return 2547;
+        case UTF8_GETCHR(u8"弓"): return 2548;
+        case UTF8_GETCHR(u8"路"): return 2549;
+        case UTF8_GETCHR(u8"波"): return 2550;
+        case UTF8_GETCHR(u8"瞅"): return 2551;
+        case UTF8_GETCHR(u8"装"): return 2552;
+        case UTF8_GETCHR(u8"逆"): return 2553;
+        case UTF8_GETCHR(u8"河"): return 2554;
+        case UTF8_GETCHR(u8"脊"): return 2555;
+        case UTF8_GETCHR(u8"入"): return 2556;
+        case UTF8_GETCHR(u8"戒"): return 2557;
+        case UTF8_GETCHR(u8"懂"): return 2558;
+        case UTF8_GETCHR(u8"么"): return 2559;
+        case UTF8_GETCHR(u8"繁"): return 2560;
+        case UTF8_GETCHR(u8"串"): return 2561;
+        case UTF8_GETCHR(u8"故"): return 2562;
+        case UTF8_GETCHR(u8"术"): return 2563;
+        case UTF8_GETCHR(u8"道"): return 2564;
+        case UTF8_GETCHR(u8"名"): return 2565;
+        case UTF8_GETCHR(u8"染"): return 2566;
+        case UTF8_GETCHR(u8"糟"): return 2567;
+        case UTF8_GETCHR(u8"九"): return 2568;
+        case UTF8_GETCHR(u8"菲"): return 2569;
+        case UTF8_GETCHR(u8"图"): return 2570;
+        case UTF8_GETCHR(u8"囊"): return 2571;
+        case UTF8_GETCHR(u8"稍"): return 2572;
+        case UTF8_GETCHR(u8"娘"): return 2573;
+        case UTF8_GETCHR(u8"津"): return 2574;
+        case UTF8_GETCHR(u8"铝"): return 2575;
+        case UTF8_GETCHR(u8"夫"): return 2576;
+        case UTF8_GETCHR(u8"腹"): return 2577;
+        case UTF8_GETCHR(u8"桩"): return 2578;
+        case UTF8_GETCHR(u8"爹"): return 2579;
+        case UTF8_GETCHR(u8"明"): return 2580;
+        case UTF8_GETCHR(u8"挥"): return 2581;
+        case UTF8_GETCHR(u8"润"): return 2582;
+        case UTF8_GETCHR(u8"泳"): return 2583;
+        case UTF8_GETCHR(u8"嗓"): return 2584;
+        case UTF8_GETCHR(u8"疏"): return 2585;
+        case UTF8_GETCHR(u8"幻"): return 2586;
+        case UTF8_GETCHR(u8"到"): return 2587;
+        case UTF8_GETCHR(u8"褐"): return 2588;
+        case UTF8_GETCHR(u8"写"): return 2589;
+        case UTF8_GETCHR(u8"匠"): return 2590;
+        case UTF8_GETCHR(u8"坛"): return 2591;
+        case UTF8_GETCHR(u8"瓜"): return 2592;
+        case UTF8_GETCHR(u8"龟"): return 2593;
+        case UTF8_GETCHR(u8"讲"): return 2594;
+        case UTF8_GETCHR(u8"嘻"): return 2595;
+        case UTF8_GETCHR(u8"寸"): return 2596;
+        case UTF8_GETCHR(u8"二"): return 2597;
+        case UTF8_GETCHR(u8"苹"): return 2598;
+        case UTF8_GETCHR(u8"强"): return 2599;
+        case UTF8_GETCHR(u8"铅"): return 2600;
+        case UTF8_GETCHR(u8"盖"): return 2601;
+        case UTF8_GETCHR(u8"街"): return 2602;
+        case UTF8_GETCHR(u8"座"): return 2603;
+        case UTF8_GETCHR(u8"错"): return 2604;
+        case UTF8_GETCHR(u8"惠"): return 2605;
+        case UTF8_GETCHR(u8"霜"): return 2606;
+        case UTF8_GETCHR(u8"灿"): return 2607;
+        case UTF8_GETCHR(u8"厚"): return 2608;
+        case UTF8_GETCHR(u8"拳"): return 2609;
+        case UTF8_GETCHR(u8"带"): return 2610;
+        case UTF8_GETCHR(u8"冶"): return 2611;
+        case UTF8_GETCHR(u8"漠"): return 2612;
+        case UTF8_GETCHR(u8"闻"): return 2613;
+        case UTF8_GETCHR(u8"段"): return 2614;
+        case UTF8_GETCHR(u8"饶"): return 2615;
+        case UTF8_GETCHR(u8"侍"): return 2616;
+        case UTF8_GETCHR(u8"杏"): return 2617;
+        case UTF8_GETCHR(u8"孙"): return 2618;
+        case UTF8_GETCHR(u8"学"): return 2619;
+        case UTF8_GETCHR(u8"悲"): return 2620;
+        case UTF8_GETCHR(u8"蕴"): return 2621;
+        case UTF8_GETCHR(u8"茅"): return 2622;
+        case UTF8_GETCHR(u8"宿"): return 2623;
+        case UTF8_GETCHR(u8"刊"): return 2624;
+        case UTF8_GETCHR(u8"镇"): return 2625;
+        case UTF8_GETCHR(u8"蜓"): return 2626;
+        case UTF8_GETCHR(u8"遗"): return 2627;
+        case UTF8_GETCHR(u8"侦"): return 2628;
+        case UTF8_GETCHR(u8"方"): return 2629;
+        case UTF8_GETCHR(u8"渴"): return 2630;
+        case UTF8_GETCHR(u8"舟"): return 2631;
+        case UTF8_GETCHR(u8"迪"): return 2632;
+        case UTF8_GETCHR(u8"宫"): return 2633;
+        case UTF8_GETCHR(u8"麻"): return 2634;
+        case UTF8_GETCHR(u8"仍"): return 2635;
+        case UTF8_GETCHR(u8"葫"): return 2636;
+        case UTF8_GETCHR(u8"魔"): return 2637;
+        case UTF8_GETCHR(u8"洲"): return 2638;
+        case UTF8_GETCHR(u8"国"): return 2639;
+        case UTF8_GETCHR(u8"伊"): return 2640;
+        case UTF8_GETCHR(u8"拱"): return 2641;
+        case UTF8_GETCHR(u8"样"): return 2642;
+        case UTF8_GETCHR(u8"狐"): return 2643;
+        case UTF8_GETCHR(u8"顿"): return 2644;
+        case UTF8_GETCHR(u8"返"): return 2645;
+        case UTF8_GETCHR(u8"支"): return 2646;
+        case UTF8_GETCHR(u8"迁"): return 2647;
+        case UTF8_GETCHR(u8"童"): return 2648;
+        case UTF8_GETCHR(u8"凌"): return 2649;
+        case UTF8_GETCHR(u8"斜"): return 2650;
+        case UTF8_GETCHR(u8"采"): return 2651;
+        case UTF8_GETCHR(u8"衰"): return 2652;
+        case UTF8_GETCHR(u8"首"): return 2653;
+        case UTF8_GETCHR(u8"寺"): return 2654;
+        case UTF8_GETCHR(u8"圣"): return 2655;
+        case UTF8_GETCHR(u8"妨"): return 2656;
+        case UTF8_GETCHR(u8"胃"): return 2657;
+        case UTF8_GETCHR(u8"只"): return 2658;
+        case UTF8_GETCHR(u8"伤"): return 2659;
+        case UTF8_GETCHR(u8"蒸"): return 2660;
+        case UTF8_GETCHR(u8"苍"): return 2661;
+        case UTF8_GETCHR(u8"植"): return 2662;
+        case UTF8_GETCHR(u8"刮"): return 2663;
+        case UTF8_GETCHR(u8"霞"): return 2664;
+        case UTF8_GETCHR(u8"抚"): return 2665;
+        case UTF8_GETCHR(u8"怪"): return 2666;
+        case UTF8_GETCHR(u8"聪"): return 2667;
+        case UTF8_GETCHR(u8"伍"): return 2668;
+        case UTF8_GETCHR(u8"贩"): return 2669;
+        case UTF8_GETCHR(u8"词"): return 2670;
+        case UTF8_GETCHR(u8"聊"): return 2671;
+        case UTF8_GETCHR(u8"歌"): return 2672;
+        case UTF8_GETCHR(u8"整"): return 2673;
+        case UTF8_GETCHR(u8"汤"): return 2674;
+        case UTF8_GETCHR(u8"舍"): return 2675;
+        case UTF8_GETCHR(u8"惹"): return 2676;
+        case UTF8_GETCHR(u8"状"): return 2677;
+        case UTF8_GETCHR(u8"犯"): return 2678;
+        case UTF8_GETCHR(u8"玄"): return 2679;
+        case UTF8_GETCHR(u8"患"): return 2680;
+        case UTF8_GETCHR(u8"弟"): return 2681;
+        case UTF8_GETCHR(u8"之"): return 2682;
+        case UTF8_GETCHR(u8"肃"): return 2683;
+        case UTF8_GETCHR(u8"洞"): return 2684;
+        case UTF8_GETCHR(u8"考"): return 2685;
+        case UTF8_GETCHR(u8"举"): return 2686;
+        case UTF8_GETCHR(u8"欣"): return 2687;
+        }
+        return std::nullopt;
     }();
     if (mapping) {
         return Platform::TextureMapping{"charset", *mapping};

@@ -140,7 +140,8 @@ if(GAMEBOY_ADVANCE)
     # all of the sounds and images need to be compiled into the ROM.
     ${DATA_DIR}/overlay.s
     ${DATA_DIR}/overlay_text_key.s
-    ${DATA_DIR}/charset.s
+    ${DATA_DIR}/charset0.s
+    ${DATA_DIR}/charset1.s
     ${DATA_DIR}/sound_msg.s)
 
 else()
@@ -349,7 +350,8 @@ if(GAMEBOY_ADVANCE)
   if(GBA_AUTOBUILD_IMG)
     add_overlay(overlay 0 0 NO)
     add_overlay(overlay_text_key 0 0 NO)
-    add_overlay(charset 0 0 NO)
+    add_overlay(charset0 0 0 NO)
+    add_overlay(charset1 0 0 NO)
 
     configure_file(images.cpp.in ${SOURCE_DIR}/platform/gba/images.cpp)
   endif()

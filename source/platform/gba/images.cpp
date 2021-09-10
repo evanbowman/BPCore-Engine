@@ -17,7 +17,9 @@
 //;
 #include "data/overlay_text_key.h"
 //;
-#include "data/charset.h"
+#include "data/charset0.h"
+//;
+#include "data/charset1.h"
 //
 
 struct TextureData {
@@ -52,7 +54,9 @@ static const TextureData overlay_textures[] = {
 //;
     TEXTURE_INFO(overlay_text_key),
 //;
-    TEXTURE_INFO(charset),
+    TEXTURE_INFO(charset0),
+//;
+    TEXTURE_INFO(charset1),
 //
 };
 
