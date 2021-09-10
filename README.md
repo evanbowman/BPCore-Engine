@@ -119,11 +119,13 @@ Show any recent `spr()` and `tile()` calls.
 
 ### RAM Read/Write
 
+NOTE: Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
+
 * `poke(address, byte)`
-Set byte at a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
+Set byte at a writable address.
 
 * `poke4(address, word)`
-Set word at a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
+Set word at a writable address.
 
 * `peek(address)`
 Returns byte value at any address.
@@ -132,7 +134,7 @@ Returns byte value at any address.
 Returns word value at any address.
 
 * `memput(address, string)`
-Copy contents of string to a writable address. Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
+Copy contents of string to a writable address.
 
 * `memget(address, count)`
 Load a string of count bytes starting from an address.
