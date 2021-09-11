@@ -74,6 +74,25 @@ template <u32 B, bool C> constexpr void my_assert()
 
 
 
+std::optional<u16> char_lookup_slow(const utf8::Codepoint& cp)
+{
+    // The very slow path. I do not intend to support uppercase characters with
+    // diacritic marks. But they should probably display as _something_
+    switch (cp) {
+    case UTF8_GETCHR(u8"À"): return 39;
+    case UTF8_GETCHR(u8"Â"): return 39;
+    case UTF8_GETCHR(u8"Ã"): return 39;
+    case UTF8_GETCHR(u8"Ä"): return 39;
+    case UTF8_GETCHR(u8"Å"): return 39;
+    case UTF8_GETCHR(u8"É"): return 43;
+    case UTF8_GETCHR(u8"Ê"): return 43;
+    case UTF8_GETCHR(u8"È"): return 43;
+    }
+
+    return std::nullopt;
+}
+
+
 
 // Each language should define a texture mapping, which tells the rendering code
 // where in the texture data to look for the glyph corresponding to a given utf8
@@ -173,219 +192,8 @@ standard_texture_map(const utf8::Codepoint& cp)
         case '>': return 104;
         case '#': return 105;
         case '_': return 186;
+        case ';': return 2753;
         }
-        // FIXME: use switch instead for these latin characters, this is just
-        // legacy code that needs to be migrated to the larger case statement.
-        if (cp == utf8::getc(u8"©")) {
-            return 185;
-        }
-        // extended spanish and french characters
-        else if (cp == utf8::getc(u8"ñ")) {
-            return 73;
-        } else if (cp == utf8::getc(u8"á")) {
-            return 74;
-        } else if (cp == utf8::getc(u8"é")) {
-            return 75;
-        } else if (cp == utf8::getc(u8"í")) {
-            return 76;
-        } else if (cp == utf8::getc(u8"ó")) {
-            return 77;
-        } else if (cp == utf8::getc(u8"ú")) {
-            return 78;
-        } else if (cp == utf8::getc(u8"â")) {
-            return 79;
-        } else if (cp == utf8::getc(u8"ê")) {
-            return 80;
-        } else if (cp == utf8::getc(u8"î")) {
-            return 81;
-        } else if (cp == utf8::getc(u8"ô")) {
-            return 82;
-        } else if (cp == utf8::getc(u8"û")) {
-            return 83;
-        } else if (cp == utf8::getc(u8"à")) {
-            return 84;
-        } else if (cp == utf8::getc(u8"è")) {
-            return 85;
-        } else if (cp == utf8::getc(u8"ù")) {
-            return 86;
-        } else if (cp == utf8::getc(u8"ë")) {
-            return 87;
-        } else if (cp == utf8::getc(u8"ï")) {
-            return 88;
-        } else if (cp == utf8::getc(u8"ü")) {
-            return 89;
-        } else if (cp == utf8::getc(u8"ç")) {
-            return 90;
-        } else if (cp == utf8::getc(u8"Ç")) {
-            return 91;
-        } else if (cp == utf8::getc(u8"ö")) {
-            return 92;
-        } else if (cp == utf8::getc(u8"¡")) {
-            return 96;
-        } else if (cp == utf8::getc(u8"¿")) {
-            return 97;
-        }
-        // katakana
-        else if (cp == utf8::getc(u8"ア")) {
-            return 106;
-        } else if (cp == utf8::getc(u8"イ")) {
-            return 107;
-        } else if (cp == utf8::getc(u8"ウ")) {
-            return 108;
-        } else if (cp == utf8::getc(u8"エ")) {
-            return 109;
-        } else if (cp == utf8::getc(u8"オ")) {
-            return 110;
-        } else if (cp == utf8::getc(u8"カ")) {
-            return 111;
-        } else if (cp == utf8::getc(u8"キ")) {
-            return 112;
-        } else if (cp == utf8::getc(u8"ク")) {
-            return 113;
-        } else if (cp == utf8::getc(u8"ケ")) {
-            return 114;
-        } else if (cp == utf8::getc(u8"コ")) {
-            return 115;
-        } else if (cp == utf8::getc(u8"サ")) {
-            return 116;
-        } else if (cp == utf8::getc(u8"シ")) {
-            return 117;
-        } else if (cp == utf8::getc(u8"ス")) {
-            return 118;
-        } else if (cp == utf8::getc(u8"セ")) {
-            return 119;
-        } else if (cp == utf8::getc(u8"ソ")) {
-            return 120;
-        } else if (cp == utf8::getc(u8"タ")) {
-            return 121;
-        } else if (cp == utf8::getc(u8"チ")) {
-            return 122;
-        } else if (cp == utf8::getc(u8"ツ")) {
-            return 123;
-        } else if (cp == utf8::getc(u8"テ")) {
-            return 124;
-        } else if (cp == utf8::getc(u8"ト")) {
-            return 125;
-        } else if (cp == utf8::getc(u8"ナ")) {
-            return 126;
-        } else if (cp == utf8::getc(u8"ニ")) {
-            return 127;
-        } else if (cp == utf8::getc(u8"ヌ")) {
-            return 128;
-        } else if (cp == utf8::getc(u8"ネ")) {
-            return 129;
-        } else if (cp == utf8::getc(u8"ノ")) {
-            return 130;
-        } else if (cp == utf8::getc(u8"ハ")) {
-            return 131;
-        } else if (cp == utf8::getc(u8"ヒ")) {
-            return 132;
-        } else if (cp == utf8::getc(u8"フ")) {
-            return 133;
-        } else if (cp == utf8::getc(u8"ヘ")) {
-            return 134;
-        } else if (cp == utf8::getc(u8"ホ")) {
-            return 135;
-        } else if (cp == utf8::getc(u8"マ")) {
-            return 136;
-        } else if (cp == utf8::getc(u8"ミ")) {
-            return 137;
-        } else if (cp == utf8::getc(u8"ム")) {
-            return 138;
-        } else if (cp == utf8::getc(u8"メ")) {
-            return 139;
-        } else if (cp == utf8::getc(u8"モ")) {
-            return 140;
-        } else if (cp == utf8::getc(u8"ヤ")) {
-            return 141;
-        } else if (cp == utf8::getc(u8"ユ")) {
-            return 142;
-        } else if (cp == utf8::getc(u8"ヨ")) {
-            return 143;
-        } else if (cp == utf8::getc(u8"ラ")) {
-            return 144;
-        } else if (cp == utf8::getc(u8"リ")) {
-            return 145;
-        } else if (cp == utf8::getc(u8"ル")) {
-            return 146;
-        } else if (cp == utf8::getc(u8"レ")) {
-            return 147;
-        } else if (cp == utf8::getc(u8"ロ")) {
-            return 148;
-        } else if (cp == utf8::getc(u8"ワ")) {
-            return 149;
-        } else if (cp == utf8::getc(u8"ヲ")) {
-            return 150;
-        } else if (cp == utf8::getc(u8"ン")) {
-            return 151;
-        } else if (cp == utf8::getc(u8"ガ")) {
-            return 152;
-        } else if (cp == utf8::getc(u8"ギ")) {
-            return 153;
-        } else if (cp == utf8::getc(u8"グ")) {
-            return 154;
-        } else if (cp == utf8::getc(u8"ゲ")) {
-            return 155;
-        } else if (cp == utf8::getc(u8"ゴ")) {
-            return 156;
-        } else if (cp == utf8::getc(u8"ゲ")) {
-            return 157;
-        } else if (cp == utf8::getc(u8"ジ")) {
-            return 158;
-        } else if (cp == utf8::getc(u8"ズ")) {
-            return 159;
-        } else if (cp == utf8::getc(u8"ゼ")) {
-            return 160;
-        } else if (cp == utf8::getc(u8"ゾ")) {
-            return 161;
-        } else if (cp == utf8::getc(u8"ダ")) {
-            return 162;
-        } else if (cp == utf8::getc(u8"ヂ")) {
-            return 163;
-        } else if (cp == utf8::getc(u8"ヅ")) {
-            return 164;
-        } else if (cp == utf8::getc(u8"デ")) {
-            return 165;
-        } else if (cp == utf8::getc(u8"ド")) {
-            return 166;
-        } else if (cp == utf8::getc(u8"バ")) {
-            return 167;
-        } else if (cp == utf8::getc(u8"パ")) {
-            return 168;
-        } else if (cp == utf8::getc(u8"ビ")) {
-            return 169;
-        } else if (cp == utf8::getc(u8"ピ")) {
-            return 170;
-        } else if (cp == utf8::getc(u8"ブ")) {
-            return 171;
-        } else if (cp == utf8::getc(u8"プ")) {
-            return 172;
-        } else if (cp == utf8::getc(u8"ベ")) {
-            return 173;
-        } else if (cp == utf8::getc(u8"ペ")) {
-            return 174;
-        } else if (cp == utf8::getc(u8"ボ")) {
-            return 175;
-        } else if (cp == utf8::getc(u8"ポ")) {
-            return 176;
-        } else if (cp == utf8::getc(u8"ー")) {
-            return 177;
-        } else if (cp == utf8::getc(u8"ヴ")) {
-            return 178;
-        } else if (cp == utf8::getc(u8"ァ")) {
-            return 179;
-        } else if (cp == utf8::getc(u8"ィ")) {
-            return 180;
-        } else if (cp == utf8::getc(u8"ゥ")) {
-            return 181;
-        } else if (cp == utf8::getc(u8"ェ")) {
-            return 182;
-        } else if (cp == utf8::getc(u8"ォ")) {
-            return 183;
-        } else if (cp == utf8::getc(u8"・")) {
-            return 184;
-        }
-
         // NOTE: this lookup table was generated from a python script. I
         // certainly did not have the patience to type all of this out by hand.
         switch (cp) {
@@ -393,6 +201,109 @@ standard_texture_map(const utf8::Codepoint& cp)
         case UTF8_GETCHR(u8"”"): return 65;
         case UTF8_GETCHR(u8"“"): return 65;
         case UTF8_GETCHR(u8"，"): return 38;
+        case UTF8_GETCHR(u8"ñ"): return 73;
+        case UTF8_GETCHR(u8"á"): return 74;
+        case UTF8_GETCHR(u8"é"): return 75;
+        case UTF8_GETCHR(u8"í"): return 76;
+        case UTF8_GETCHR(u8"ó"): return 77;
+        case UTF8_GETCHR(u8"ú"): return 78;
+        case UTF8_GETCHR(u8"â"): return 79;
+        case UTF8_GETCHR(u8"ê"): return 80;
+        case UTF8_GETCHR(u8"î"): return 81;
+        case UTF8_GETCHR(u8"ô"): return 82;
+        case UTF8_GETCHR(u8"û"): return 83;
+        case UTF8_GETCHR(u8"à"): return 84;
+        case UTF8_GETCHR(u8"è"): return 85;
+        case UTF8_GETCHR(u8"ù"): return 86;
+        case UTF8_GETCHR(u8"ë"): return 87;
+        case UTF8_GETCHR(u8"ï"): return 88;
+        case UTF8_GETCHR(u8"ü"): return 89;
+        case UTF8_GETCHR(u8"ç"): return 90;
+        case UTF8_GETCHR(u8"Ç"): return 91;
+        case UTF8_GETCHR(u8"ö"): return 92;
+        case UTF8_GETCHR(u8"¡"): return 96;
+        case UTF8_GETCHR(u8"¿"): return 97;
+        case UTF8_GETCHR(u8"ア"): return 106;
+        case UTF8_GETCHR(u8"イ"): return 107;
+        case UTF8_GETCHR(u8"ウ"): return 108;
+        case UTF8_GETCHR(u8"エ"): return 109;
+        case UTF8_GETCHR(u8"オ"): return 110;
+        case UTF8_GETCHR(u8"カ"): return 111;
+        case UTF8_GETCHR(u8"キ"): return 112;
+        case UTF8_GETCHR(u8"ク"): return 113;
+        case UTF8_GETCHR(u8"ケ"): return 114;
+        case UTF8_GETCHR(u8"コ"): return 115;
+        case UTF8_GETCHR(u8"サ"): return 116;
+        case UTF8_GETCHR(u8"シ"): return 117;
+        case UTF8_GETCHR(u8"ス"): return 118;
+        case UTF8_GETCHR(u8"セ"): return 119;
+        case UTF8_GETCHR(u8"ソ"): return 120;
+        case UTF8_GETCHR(u8"タ"): return 121;
+        case UTF8_GETCHR(u8"チ"): return 122;
+        case UTF8_GETCHR(u8"ッ"): return 123;
+        case UTF8_GETCHR(u8"ツ"): return 123;
+        case UTF8_GETCHR(u8"テ"): return 124;
+        case UTF8_GETCHR(u8"ト"): return 125;
+        case UTF8_GETCHR(u8"ナ"): return 126;
+        case UTF8_GETCHR(u8"ニ"): return 127;
+        case UTF8_GETCHR(u8"ヌ"): return 128;
+        case UTF8_GETCHR(u8"ネ"): return 129;
+        case UTF8_GETCHR(u8"ノ"): return 130;
+        case UTF8_GETCHR(u8"ハ"): return 131;
+        case UTF8_GETCHR(u8"ヒ"): return 132;
+        case UTF8_GETCHR(u8"フ"): return 133;
+        case UTF8_GETCHR(u8"ヘ"): return 134;
+        case UTF8_GETCHR(u8"ホ"): return 135;
+        case UTF8_GETCHR(u8"マ"): return 136;
+        case UTF8_GETCHR(u8"ミ"): return 137;
+        case UTF8_GETCHR(u8"ム"): return 138;
+        case UTF8_GETCHR(u8"メ"): return 139;
+        case UTF8_GETCHR(u8"モ"): return 140;
+        case UTF8_GETCHR(u8"ヤ"): return 141;
+        case UTF8_GETCHR(u8"ユ"): return 142;
+        case UTF8_GETCHR(u8"ヨ"): return 143;
+        case UTF8_GETCHR(u8"ラ"): return 144;
+        case UTF8_GETCHR(u8"リ"): return 145;
+        case UTF8_GETCHR(u8"ル"): return 146;
+        case UTF8_GETCHR(u8"レ"): return 147;
+        case UTF8_GETCHR(u8"ロ"): return 148;
+        case UTF8_GETCHR(u8"ワ"): return 149;
+        case UTF8_GETCHR(u8"ヲ"): return 150;
+        case UTF8_GETCHR(u8"ン"): return 151;
+        case UTF8_GETCHR(u8"ガ"): return 152;
+        case UTF8_GETCHR(u8"ギ"): return 153;
+        case UTF8_GETCHR(u8"グ"): return 154;
+        case UTF8_GETCHR(u8"ゲ"): return 155;
+        case UTF8_GETCHR(u8"ゴ"): return 156;
+        case UTF8_GETCHR(u8"ザ"): return 157;
+        case UTF8_GETCHR(u8"ジ"): return 158;
+        case UTF8_GETCHR(u8"ズ"): return 159;
+        case UTF8_GETCHR(u8"ゼ"): return 160;
+        case UTF8_GETCHR(u8"ゾ"): return 161;
+        case UTF8_GETCHR(u8"ダ"): return 162;
+        case UTF8_GETCHR(u8"ヂ"): return 163;
+        case UTF8_GETCHR(u8"ヅ"): return 164;
+        case UTF8_GETCHR(u8"デ"): return 165;
+        case UTF8_GETCHR(u8"ド"): return 166;
+        case UTF8_GETCHR(u8"バ"): return 167;
+        case UTF8_GETCHR(u8"パ"): return 168;
+        case UTF8_GETCHR(u8"ビ"): return 169;
+        case UTF8_GETCHR(u8"ピ"): return 170;
+        case UTF8_GETCHR(u8"ブ"): return 171;
+        case UTF8_GETCHR(u8"プ"): return 172;
+        case UTF8_GETCHR(u8"ベ"): return 173;
+        case UTF8_GETCHR(u8"ペ"): return 174;
+        case UTF8_GETCHR(u8"ボ"): return 175;
+        case UTF8_GETCHR(u8"ポ"): return 176;
+        case UTF8_GETCHR(u8"ー"): return 177;
+        case UTF8_GETCHR(u8"ヴ"): return 178;
+        case UTF8_GETCHR(u8"ァ"): return 179;
+        case UTF8_GETCHR(u8"ィ"): return 180;
+        case UTF8_GETCHR(u8"ゥ"): return 181;
+        case UTF8_GETCHR(u8"ェ"): return 182;
+        case UTF8_GETCHR(u8"ォ"): return 183;
+        case UTF8_GETCHR(u8"・"): return 184;
+        case UTF8_GETCHR(u8"©"): return 185;
         case UTF8_GETCHR(u8"届"): return 187;
         case UTF8_GETCHR(u8"俊"): return 188;
         case UTF8_GETCHR(u8"垫"): return 189;
@@ -2959,8 +2870,16 @@ standard_texture_map(const utf8::Codepoint& cp)
         case UTF8_GETCHR(u8"э"): return 2750;
         case UTF8_GETCHR(u8"ю"): return 2751;
         case UTF8_GETCHR(u8"я"): return 2752;
+        case UTF8_GETCHR(u8"Ø"): return 2754;
+        case UTF8_GETCHR(u8"ø"): return 2755;
+        case UTF8_GETCHR(u8"Æ"): return 2756;
+        case UTF8_GETCHR(u8"ョ"): return 2757;
+        case UTF8_GETCHR(u8"ャ"): return 2758;
+        case UTF8_GETCHR(u8"ヮ"): return 2759;
+        case UTF8_GETCHR(u8"ュ"): return 2760;
         }
-        return std::nullopt;
+
+        return char_lookup_slow(cp);
     }();
     if (mapping) {
         return Platform::TextureMapping{"charset", *mapping};
