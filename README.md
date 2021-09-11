@@ -210,6 +210,11 @@ A special memory region dedicated to save data. Writes can be quite slow, but th
 
 # Examples
 
+## Example Projects
+
+* [Meteorain, by Dr. Ludos](https://github.com/drludos/meteorain-gba)
+* [Unicode eBook Reader](https://github.com/evanbowman/bpcore-gba-book-reader)
+
 ## A tiny demo
 ``` Lua
 
@@ -286,9 +291,6 @@ main_loop(update, draw)
 
 ```
 
-## Example Projects
-
-* [Meteorain, by Dr. Ludos](https://github.com/drludos/meteorain-gba)
 
 
 # Quirks
