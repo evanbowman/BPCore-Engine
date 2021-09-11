@@ -2999,23 +2999,165 @@ struct MultiplayerComms {
 
 
     RxInfo* poller_current_message = nullptr;
-};
+
+    int null_bytes_written = 0;
 
 
-static bool connection_set[4];
+} multiplayer_comms;
+
+
+static TxInfo* tx_ring_pop()
+{
+    auto& mc = multiplayer_comms;
+
+
+    TxInfo* msg = nullptr;
+
+    for (int i = mc.tx_ring_read_pos; i < mc.tx_ring_read_pos + mc.tx_ring_size;
+         ++i) {
+        auto index = i % mc.tx_ring_size;
+        if (mc.tx_ring[index]) {
+            msg = mc.tx_ring[index];
+            mc.tx_ring[index] = nullptr;
+            mc.tx_ring_read_pos = index;
+            return msg;
+        }
+    }
+
+    mc.tx_ring_read_pos += 1;
+    mc.tx_ring_read_pos %= mc.tx_ring_size;
+
+    // The transmit ring is completely empty!
+    return nullptr;
+}
 
 
 static void multi_tx_send(volatile unsigned short* output)
 {
-    *output = 0;
-    // TODO...
+    auto& mc = multiplayer_comms;
+
+    if (mc.tx_iter_state == message_iters) {
+        if (mc.tx_current_message) {
+            mc.tx_message_pool.post(mc.tx_current_message);
+            mc.tx_message_count += 1;
+        }
+        mc.tx_current_message = tx_ring_pop();
+        mc.tx_iter_state = 0;
+    }
+
+    if (mc.tx_current_message) {
+        // StringBuffer<32> str = "put: ";
+        // for (int i = 1; i < 12; ++i) {
+        //     str.push_back(((char*)mc.tx_current_message->data_)[i]);
+        // }
+        // info(*::platform, str.c_str());
+        // while (true) ;
+        *output = mc.tx_current_message->data_[mc.tx_iter_state++];
+    } else {
+        mc.null_bytes_written += 2;
+        mc.tx_iter_state++;
+        *output = 0;
+    }
+}
+
+
+static void rx_ring_push(RxInfo* message)
+{
+    // StringBuffer<32> str = "got: ";
+    // for (int i = 1; i < 12; ++i) {
+    //     str.push_back(((char*)message->data_)[i]);
+    // }
+    // info(*::platform, str.c_str());
+    // while (true) ;
+
+    auto& mc = multiplayer_comms;
+
+    mc.rx_message_count += 1;
+
+    if (mc.rx_ring[mc.rx_ring_write_pos]) {
+        // The reader does not seem to be keeping up!
+        mc.rx_loss += 1;
+
+        auto lost_message = mc.rx_ring[mc.rx_ring_write_pos];
+
+        mc.rx_ring[mc.rx_ring_write_pos] = nullptr;
+        mc.rx_message_pool.post(lost_message);
+    }
+
+    mc.rx_ring[mc.rx_ring_write_pos] = message;
+    mc.rx_ring_write_pos += 1;
+    mc.rx_ring_write_pos %= mc.rx_ring_size;
+}
+
+
+static RxInfo* rx_ring_pop()
+{
+    auto& mc = multiplayer_comms;
+
+    RxInfo* msg = nullptr;
+
+    for (int i = mc.rx_ring_read_pos; i < mc.rx_ring_read_pos + mc.rx_ring_size;
+         ++i) {
+        auto index = i % mc.rx_ring_size;
+
+        if (mc.rx_ring[index]) {
+            msg = mc.rx_ring[index];
+            mc.rx_ring[index] = nullptr;
+            mc.rx_ring_read_pos = index;
+
+            return msg;
+        }
+    }
+
+    mc.rx_ring_read_pos += 1;
+    mc.rx_ring_read_pos %= mc.rx_ring_size;
+
+    return nullptr;
 }
 
 
 static void multi_rx_receive(int slot, unsigned short data)
 {
+    auto& mc = multiplayer_comms;
+    auto& s = multiplayer_comms.rx_slots_[slot];
 
+
+    if (s.rx_iter_state == message_iters) {
+        if (s.rx_current_message) {
+            if (s.rx_current_all_zeroes) {
+                mc.rx_message_pool.post(s.rx_current_message);
+            } else {
+                rx_ring_push(s.rx_current_message);
+            }
+        }
+
+        s.rx_current_all_zeroes = true;
+
+        s.rx_current_message = mc.rx_message_pool.get();
+        if (not s.rx_current_message) {
+            mc.rx_loss += 1;
+        }
+        s.rx_iter_state = 0;
+    }
+
+    if (s.rx_current_message) {
+        if (s.rx_current_all_zeroes and data) {
+            s.rx_current_all_zeroes = false;
+            StringBuffer<32> str = "got: ";
+            for (int i = 0; i < 2; ++i) {
+                str.push_back(((char*)&data)[i]);
+            }
+            info(*::platform, str.c_str());
+            while (true) ;
+        }
+        s.rx_current_message->data_[s.rx_iter_state++] = data;
+    } else {
+        s.rx_iter_state++;
+    }
 }
+
+
+static int connection_set = 0;
 
 
 void multi_data_function(unsigned short host_data,
@@ -3026,55 +3168,66 @@ void multi_data_function(unsigned short host_data,
 {
     multi_tx_send(output);
 
-
     switch (multi_id()) {
     case multi_PlayerId_unknown:
         return;
 
     case multi_PlayerId_host:
-        if (connection_set[multi_PlayerId_p1]) {
+        if (connection_set & multi_PlayerId_p1) {
             multi_rx_receive(0, p1_data);
         }
-        if (connection_set[multi_PlayerId_p2]) {
+        if (connection_set & multi_PlayerId_p2) {
+            error(*platform, "klsd");
+            while (true);
             multi_rx_receive(1, p2_data);
         }
-        if (connection_set[multi_PlayerId_p3]) {
+        if (connection_set & multi_PlayerId_p3) {
+            error(*platform, "klsd");
+            while (true);
             multi_rx_receive(2, p3_data);
         }
         break;
 
     case multi_PlayerId_p1:
-        if (connection_set[multi_PlayerId_host]) {
+        if (connection_set & multi_PlayerId_host) {
             multi_rx_receive(0, host_data);
         }
-        if (connection_set[multi_PlayerId_p2]) {
+        if (connection_set & multi_PlayerId_p2) {
+            error(*platform, "klsd");
+            while (true);
             multi_rx_receive(1, p2_data);
         }
-        if (connection_set[multi_PlayerId_p3]) {
+        if (connection_set & multi_PlayerId_p3) {
+            error(*platform, "klsd");
+            while (true);
             multi_rx_receive(2, p3_data);
         }
         break;
 
     case multi_PlayerId_p2:
-        if (connection_set[multi_PlayerId_host]) {
+        error(*platform, "klsd");
+        while (true);
+        if (connection_set & multi_PlayerId_host) {
             multi_rx_receive(0, host_data);
         }
-        if (connection_set[multi_PlayerId_p1]) {
+        if (connection_set & multi_PlayerId_p1) {
             multi_rx_receive(1, p1_data);
         }
-        if (connection_set[multi_PlayerId_p3]) {
+        if (connection_set & multi_PlayerId_p3) {
             multi_rx_receive(2, p3_data);
         }
         break;
 
     case multi_PlayerId_p3:
-        if (connection_set[multi_PlayerId_host]) {
+        error(*platform, "klsd");
+        while (true);
+        if (connection_set & multi_PlayerId_host) {
             multi_rx_receive(0, host_data);
         }
-        if (connection_set[multi_PlayerId_p1]) {
+        if (connection_set & multi_PlayerId_p1) {
             multi_rx_receive(1, p1_data);
         }
-        if (connection_set[multi_PlayerId_p2]) {
+        if (connection_set & multi_PlayerId_p2) {
             multi_rx_receive(2, p2_data);
         }
         break;
@@ -3089,12 +3242,49 @@ Platform::NetworkPeer::NetworkPeer()
 
 bool Platform::NetworkPeer::send_message(const Message& message)
 {
-    StringBuffer<12> buffer;
+    StringBuffer<24> buffer = "send: ";
     for (u32 i = 0; i < message.length_; ++i) {
         buffer.push_back((char)message.data_[i]);
     }
 
     info(*::platform, buffer.c_str());
+
+
+    if (message.length_ > sizeof(TxInfo::data_)) {
+        error(*platform, "invalid network packet size");
+        while (true) ;
+    }
+
+    if (not is_connected()) {
+        return false;
+    }
+
+
+    auto& mc = multiplayer_comms;
+
+
+    if (mc.tx_ring[mc.tx_ring_write_pos]) {
+        // The writer does not seem to be keeping up! Guess we'll have to drop a
+        // message :(
+        mc.tx_loss += 1;
+
+        auto lost_message = mc.tx_ring[mc.tx_ring_write_pos];
+        mc.tx_ring[mc.tx_ring_write_pos] = nullptr;
+
+        mc.tx_message_pool.post(lost_message);
+    }
+
+    auto msg = mc.tx_message_pool.get();
+    if (not msg) {
+        mc.tx_loss += 1;
+        return false;
+    }
+
+    __builtin_memcpy(msg->data_, message.data_, message.length_);
+
+    mc.tx_ring[mc.tx_ring_write_pos] = msg;
+    mc.tx_ring_write_pos += 1;
+    mc.tx_ring_write_pos %= mc.tx_ring_size;
 
     return true;
 }
@@ -3103,19 +3293,50 @@ bool Platform::NetworkPeer::send_message(const Message& message)
 std::optional<Platform::NetworkPeer::Message>
 Platform::NetworkPeer::poll_message()
 {
+    auto& mc = multiplayer_comms;
+
+    if (mc.rx_slots_[0].rx_iter_state == message_iters or
+        mc.rx_slots_[1].rx_iter_state == message_iters or
+        mc.rx_slots_[2].rx_iter_state == message_iters) {
+        return {};
+    }
+
+    if (auto msg = rx_ring_pop()) {
+        if (UNLIKELY(mc.poller_current_message not_eq nullptr)) {
+            mc.rx_message_pool.post(msg);
+            disconnect();
+            return {};
+        }
+        mc.poller_current_message = msg;
+        return Platform::NetworkPeer::Message{
+            reinterpret_cast<byte*>(msg->data_),
+            static_cast<int>(sizeof(WireMessage::data_))};
+    }
     return {};
 }
 
 
 void Platform::NetworkPeer::poll_consume(u32 length)
 {
+    auto& mc = multiplayer_comms;
 
+    if (mc.poller_current_message) {
+        mc.rx_message_pool.post(mc.poller_current_message);
+    } else {
+        error(*platform, "logic error in poll");
+        while (true) ;
+    }
+    mc.poller_current_message = nullptr;
 }
 
 
 static void multi_connect_callback(multi_PlayerId player, int connected)
 {
-    connection_set[player] = connected;
+    if (connected) {
+        connection_set |= player;
+    } else {
+        connection_set &= ~player;
+    }
 }
 
 
@@ -3137,6 +3358,8 @@ static bool multiplayer_connected = false;
 
 static void multiplayer_init()
 {
+    connection_set = 0;
+
     multi_Status connect_result = multi_connect(multi_connect_callback,
                                                 multi_host_callback,
                                                 multi_data_function);
@@ -3193,6 +3416,8 @@ bool Platform::NetworkPeer::is_host() const
 
 void Platform::NetworkPeer::disconnect()
 {
+    error(*platform, "unexpected disconnect!");
+    while (true) ;
 }
 
 
