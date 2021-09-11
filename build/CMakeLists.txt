@@ -130,6 +130,7 @@ if(GAMEBOY_ADVANCE)
   set(SOURCES
     ${SOURCES}
     ${SOURCE_DIR}/platform/gba/gba_platform.cpp
+    ${SOURCE_DIR}/platform/gba/multi.c
     ${SOURCE_DIR}/platform/gba/memcpy.s
     ${SOURCE_DIR}/platform/gba/interrupt.c
     ${SOURCE_DIR}/platform/gba/interrupt_dispatch.s

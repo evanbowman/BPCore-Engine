@@ -86,6 +86,10 @@ static const struct {
      }},
     {"recv",
      [](lua_State* L) -> int {
+         if (not platform->network_peer().is_connected()) {
+             lua_pushnil(L);
+             return 1;
+         }
          if (auto message = platform->network_peer().poll_message()) {
              lua_pushlstring(L, (const char*)message->data_ + 1,
                              Platform::NetworkPeer::max_message_size - 1);
