@@ -193,6 +193,7 @@ standard_texture_map(const utf8::Codepoint& cp)
         case '#': return 105;
         case '_': return 186;
         case ';': return 2753;
+        case '&': return 2761;
         }
         // NOTE: this lookup table was generated from a python script. I
         // certainly did not have the patience to type all of this out by hand.
