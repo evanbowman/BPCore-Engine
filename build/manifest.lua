@@ -5,6 +5,7 @@ local app = {
    tilesets = {
       "overlay.bmp",
       "tile0.bmp",
+      "test.bmp",
    },
 
    spritesheets = {

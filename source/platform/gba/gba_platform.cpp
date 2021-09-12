@@ -417,15 +417,15 @@ void Platform::Screen::init_layers(int background_prior,
 {
     // Tilemap layer 0
     *bg0_control = BG_CBB(cbb_t0_texture) | BG_SBB(sbb_t0_tiles) |
-                   BG_REG_64x64 | BG_PRIORITY(background_prior) | BG_MOSAIC;
+                   BG_REG_64x64 | BG_PRIORITY(tile0_prior) | BG_MOSAIC;
 
     // Tilemap layer 1
     *bg3_control = BG_CBB(cbb_t1_texture) | BG_SBB(sbb_t1_tiles) |
-                   BG_REG_64x64 | BG_PRIORITY(tile0_prior) | BG_MOSAIC;
+                   BG_REG_64x64 | BG_PRIORITY(tile1_prior) | BG_MOSAIC;
 
     // The starfield background
     *bg1_control = BG_CBB(cbb_bg_texture) | BG_SBB(sbb_bg_tiles) |
-                   BG_PRIORITY(tile1_prior) | BG_MOSAIC;
+                   BG_PRIORITY(background_prior) | BG_MOSAIC;
 
     // The overlay
     *bg2_control = BG_CBB(cbb_overlay_texture) | BG_SBB(sbb_overlay_tiles) |
@@ -1716,7 +1716,6 @@ void Platform::Logger::set_threshold(Severity severity)
 
 void Platform::Logger::log(Severity level, const char* msg)
 {
-    return;
     if (static_cast<int>(level) < static_cast<int>(::log_threshold)) {
         return;
     }
@@ -2904,13 +2903,13 @@ void Platform::set_tile(Layer layer, u16 x, u16 y, u16 val)
             return;
         }
         if (x < 32 and y < 32) {
-            MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 32] = val;
+            MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 32] = val | SE_PALBANK(2);
         } else if (y < 32) {
-            MEM_SCREENBLOCKS[sbb_t1_tiles + 1][(x - 32) + y * 32] = val;
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 1][(x - 32) + y * 32] = val | SE_PALBANK(2);
         } else if (x < 32) {
-            MEM_SCREENBLOCKS[sbb_t1_tiles + 2][x + (y - 32) * 32] = val;
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 2][x + (y - 32) * 32] = val | SE_PALBANK(2);
         } else {
-            MEM_SCREENBLOCKS[sbb_t1_tiles + 3][(x - 32) + (y - 32) * 32] = val;
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 3][(x - 32) + (y - 32) * 32] = val | SE_PALBANK(2);
         }
         break;
 
