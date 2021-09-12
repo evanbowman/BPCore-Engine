@@ -185,7 +185,7 @@ BPCore's implementation of network I/O does not guarantee that messages will be 
 Attempt to connect to another GBA device via the link port. Return true upon success, false upon failure. The function will automatically fail after timeout_seconds, if no other device successfully connected. `connect` is the only blocking call in the Serial I/O library, all other network functions use asynchronous I/O.
 
 * `send(message_string)`
-Send a message to another device. The `send` function queues the input message string, and returns immediately with a success/failure code. The function may fail if you exhaust the outgoing message queue, or if the message_string exceeds the engine's eleven-byte-per-message size limit. NOTE: you don't, of course, need to send a human-readable string, it just happends that a string is the most flexible option for accepting either a human readable character string, or binary encoded data.
+Send a message to another device. The `send` function queues the input message string, and returns immediately with a success/failure code. The function may fail if you exhaust the outgoing message queue, or if the message_string exceeds the engine's eleven-byte-per-message size limit. NOTE: you don't, of course, need to send a human-readable string, it just happens that a string is the most flexible option for accepting either a human readable character string, or binary encoded data.
 
 * `recv()`
 Polls the receive queue for message strings. Returns a message, if one is available, or returns nil, if there are no messages in the queue. The returned messages will be prefixed with a single character device id representing the sender, e.g. if you send("hi") on one device, you will receive "1hi" if the message originated in the player1 console, or "2hi" if the player2 console sent the message, etc.. As the engine only supports two-player connections, you may be wondering why I bother to include a device id prefix at all: in case I add support for 4 player connections, you may care where the message originated, and I don't want to break backwards compatibility, so messages include a device id, even if it's not especially useful yet. If you want to drain the receive queue, simply run `recv` in a loop:
@@ -214,7 +214,7 @@ Feed the engine's watchdog counter. You do not need to call this function if you
 
 ### Reserved words
 
-The functions `syscall`, `send`, `recv`, as well as the variable `util`, should be considered reserved for future use. Do not use these variable names, if you want to seamlessly migrate to new versions of the engine.
+The function `syscall`, as well as the variable `util`, should be considered reserved for future use. Do not use these variable names, if you want to seamlessly migrate to new versions of the engine.
 
 
 # Memory
