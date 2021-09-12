@@ -175,6 +175,32 @@ next_script("other_file.lua")
 
 ```
 
+### Serial I/O
+
+You can use the engine's asynchronous I/O library to send data to another GBA device, using the GBA's multiplayer link mode. Currently, the engine only supports two connected devices, with plans to support four devices in the future.
+
+BPCore's implementation of network I/O does not guarantee that messages will be received in-order, or even received at all. Each device maintains a 64-packet receive queue, as well as a 32-packet send queue. Overflowing either the send queue in the sender, or the receive queue in the receiver, will result in packet loss. That said, I've used this network implementation in several GBA games; Blind Jump, Skyland, etc., and I've never had any problems with packet loss. If you limit your send() calls to a few packets per frame, you will never see any message loss.
+
+* `connect(timeout_seconds)`
+Attempt to connect to another GBA device via the link port. Return true upon success, false upon failure. The function will automatically fail after timeout_seconds, if no other device successfully connected. `connect` is the only blocking call in the Serial I/O library, all other network functions use asynchronous I/O.
+
+* `send(message_string)`
+Send a message to another device. The `send` function queues the input message string, and returns immediately with a success/failure code. The function may fail if you exhaust the outgoing message queue, or if the message_string exceeds the engine's eleven-byte-per-message size limit. NOTE: you don't, of course, need to send a human-readable string, it just happends that a string is the most flexible option for accepting either a human readable character string, or binary encoded data.
+
+* `recv()`
+Polls the receive queue for message strings. Returns a message, if one is available, or returns nil, if there are no messages in the queue. The returned messages will be prefixed with a single character device id representing the sender, e.g. if you send("hi") on one device, you will receive "1hi" if the message originated in the player1 console, or "2hi" if the player2 console sent the message, etc.. As the engine only supports two-player connections, you may be wondering why I bother to include a device id prefix at all: in case I add support for 4 player connections, you may care where the message originated, and I don't want to break backwards compatibility, so messages include a device id, even if it's not especially useful yet. If you want to drain the receive queue, simply run `recv` in a loop:
+``` lua
+local pkt = recv()
+while pkt do
+   -- do something with pkt
+   pkt = recv()
+end
+```
+
+* `disconnect()`
+Close the multiplayer session. During the diconnect process, the engine will send "$disconnect!" to the other device, substituting $ with the device id. Calls to connect() will implicitly call disconnect() if there is already an active connection.
+
+
 ### System
 
 * `sleep(frames)`
