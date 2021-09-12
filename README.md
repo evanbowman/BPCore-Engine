@@ -94,7 +94,7 @@ Render text to the overlay tile layer, using the system font. Supports Utf-8, al
 Load image data from the resource bundle into VRAM. Layer refers to either the spritesheet, or one of the game's tile layers; layer0: overlay, layer1: map1, layer2: map0, layer4: spritesheet. The resource limits for the different layers vary, and will be enumerated here later. The overlay is drawn first, followed by sprites, followed by the two map layers. There is in fact another layer available, background layer3, which shares texture memory with layer2. layer3 and the overlay layer are 32x32 tiles in size, where each tile is 8x8 pixels in size. Map1 and Map0 are 64x64 tiles in size.
 
 * `spr(index, x, y, [xflip], [yflip])`
-Draw `index` from the spritesheet at screen pixel offset (`x`,`y`). Includes optional flipping flags. The spr command is unfinished, but all sprites will be 16x16 pixels in size.
+Draw `index` from the spritesheet at screen pixel offset (`x`,`y`). Includes optional flipping flags.
 
 * `tile(layer, x, y, [tile_num])`
 Draw tile indicated by `tile_num` in tile layer `layer`, with coordinates `x` and `y`. Unlike `spr()`, tiles are persistent, and do not need to be redrawn for each frame. If called without `tile_num`, will instead return the current tile value at `x`,`y` in `layer`.
