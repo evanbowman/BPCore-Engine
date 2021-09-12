@@ -263,6 +263,10 @@ function convert_tileset(path)
    local w = img.width
    local h = img.height
 
+   if w % 8 ~= 0 or h % 8 ~= 0 then
+      error("image width and height must be multiples of 8")
+   end
+
    local palette = {}
 
    map_color = make_color_mapper(palette)
@@ -270,8 +274,7 @@ function convert_tileset(path)
    -- Transparent color constant should have index 0
    map_color(format_color(255, 0, 255))
 
-   -- divided by two, b/c four bits per pixel
-   if (w * h) / 2 > 7168 then
+   if (w * h) > 26880 then
       error("image " .. path .. " too large!")
    end
 
