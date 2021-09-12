@@ -3378,7 +3378,7 @@ static void __attribute__((noinline)) busy_wait(unsigned max)
 }
 
 
-static void multiplayer_init()
+static void multiplayer_init(Microseconds timeout)
 {
     Microseconds delta = 0;
 
@@ -3399,7 +3399,7 @@ MASTER_RETRY:
 
     while (not multiplayer_validate()) {
         delta += ::platform->delta_clock().reset();
-        if (delta > seconds(20)) {
+        if (delta > std::max(seconds(3), timeout)) {
             if (not multiplayer_validate_modes()) {
                 error(*::platform, "not all GBAs are in MULTI mode");
             }
@@ -3471,7 +3471,7 @@ MASTER_RETRY:
 }
 
 
-void Platform::NetworkPeer::connect(const char* peer)
+void Platform::NetworkPeer::connect(const char* peer, Microseconds timeout)
 {
     // If the gameboy player is active, any multiplayer initialization would
     // clobber the Normal_32 serial transfer between the gameboy player and the
@@ -3480,17 +3480,17 @@ void Platform::NetworkPeer::connect(const char* peer)
     //     return;
     // }
 
-    multiplayer_init();
+    multiplayer_init(timeout);
 }
 
 
-void Platform::NetworkPeer::listen()
+void Platform::NetworkPeer::listen(Microseconds timeout)
 {
     // if (get_gflag(GlobalFlag::gbp_unlocked)) {
     //     return;
     // }
 
-    multiplayer_init();
+    multiplayer_init(timeout);
 }
 
 

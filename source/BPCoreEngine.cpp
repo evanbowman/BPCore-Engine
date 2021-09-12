@@ -31,6 +31,51 @@ static const int __ram_size = 8000;
 alignas(4) static u8 __ram[__ram_size];
 
 
+static void pkt_set_origin(char* pkt)
+{
+    if (platform->network_peer().is_host()) {
+        pkt[0] = '1';
+    } else {
+        pkt[0] = '2';
+    }
+}
+
+
+static void disconnect()
+{
+    if (platform->network_peer().is_connected()) {
+
+        // Give pending packets a chance to be written out.
+        platform->sleep(10);
+
+        char message[Platform::NetworkPeer::max_message_size] = {
+            '_', 'd', 'i', 's', 'c', 'o', 'n', 'n', 'e', 'c', 't', '!'
+        };
+
+        pkt_set_origin(message);
+
+        Platform::NetworkPeer::Message packet;
+        packet.data_ = reinterpret_cast<const byte*>(message);
+        packet.length_ = Platform::NetworkPeer::max_message_size;
+
+        while (not platform->network_peer().send_message(packet)) {
+            if (not platform->network_peer().is_connected()) {
+                return;
+            }
+        }
+
+        // Make sure that we give the packet a chance to be written, before
+        // cutting the connection. This sleep duration is quite generous, in
+        // practice, all packets should be written after a frame or two, in the
+        // worst case.
+        platform->sleep(10);
+
+        platform->network_peer().disconnect();
+    }
+}
+
+
+
 static const struct {
     const char* name_;
     int (*callback_)(lua_State*);
@@ -42,23 +87,21 @@ static const struct {
      }},
     {"connect",
      [](lua_State* L) -> int {
-         if (platform->network_peer().is_connected()) {
-             platform->network_peer().disconnect();
-         }
-         platform->network_peer().connect(nullptr);
+         disconnect();
+         platform->network_peer().connect(nullptr, seconds(lua_tointeger(L, 1)));
          lua_pushboolean(L, platform->network_peer().is_connected());
          return 1;
      }},
     {"disconnect",
      [](lua_State* L) -> int {
-         platform->network_peer().disconnect();
+         disconnect();
          return 0;
      }},
     {"send",
      [](lua_State* L) -> int {
          char message[Platform::NetworkPeer::max_message_size];
          __builtin_memset(message + 1, 0, (sizeof message) - 1);
-         message[0] = 1;
+         pkt_set_origin(message);
 
          const char* str = lua_tostring(L, 1);
          const auto len = str_len(str);
@@ -87,8 +130,8 @@ static const struct {
     {"recv",
      [](lua_State* L) -> int {
          if (auto message = platform->network_peer().poll_message()) {
-             lua_pushlstring(L, (const char*)message->data_ + 1,
-                             Platform::NetworkPeer::max_message_size - 1);
+             lua_pushlstring(L, (const char*)message->data_,
+                             Platform::NetworkPeer::max_message_size);
              platform->
                  network_peer()
                  .poll_consume(Platform::NetworkPeer::max_message_size);

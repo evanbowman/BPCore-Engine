@@ -521,8 +521,8 @@ public:
         NetworkPeer(const NetworkPeer&) = delete;
         ~NetworkPeer();
 
-        void connect(const char* peer_address);
-        void listen();
+        void connect(const char* peer_address, Microseconds timeout);
+        void listen(Microseconds timeout);
 
         void disconnect();
 
