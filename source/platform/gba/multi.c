@@ -65,6 +65,7 @@ enum {
 // Cache our device's multiplayer id.
 static multi_PlayerId g_multi_id = multi_PlayerId_unknown;
 static multi_DataCallback g_data_callback = NULL;
+static multi_SendCallback g_send_callback = NULL;
 
 
 volatile int sio_got_intr = 0;
@@ -107,6 +108,14 @@ static void multi_connect_serial_isr()
     sio_got_intr = 1;
 
     multi_record_id();
+}
+
+
+static inline void multi_tx_send()
+{
+    u16 output;
+    g_send_callback(&output);
+    REG_SIOMLT_SEND = output;
 }
 
 
@@ -169,9 +178,11 @@ multi_PlayerId multi_connection_set()
 
 multi_Status multi_connect(multi_ConnectedCallback callback,
                            multi_ConnectionHostCallback host_callback,
+                           multi_SendCallback send_callback,
                            multi_DataCallback data_callback)
 {
     g_data_callback = data_callback;
+    g_send_callback = send_callback;
 
     REG_RCNT = R_MULTI;
     REG_SIOCNT = SIO_MULTI;
@@ -239,7 +250,7 @@ multi_Status multi_connect(multi_ConnectedCallback callback,
 static void multi_master_timer_isr()
 {
     multi_enable_timer2_irq(0);
-
+    multi_tx_send();
     REG_SIOCNT |= SIO_START;
 }
 
@@ -269,19 +280,27 @@ static void multi_schedule_master_tx()
 }
 
 
+static void multi_schedule_tx()
+{
+    if (multiplayer_is_master()) {
+        multi_schedule_master_tx();
+    } else {
+        multi_tx_send();
+    }
+}
+
+
 static void multi_serial_isr()
 {
     multi_record_id();
 
+
     g_data_callback(REG_SIOMULTI0,
                     REG_SIOMULTI1,
                     REG_SIOMULTI2,
-                    REG_SIOMULTI3,
-                    &REG_SIOMLT_SEND);
+                    REG_SIOMULTI3);
 
-    if (multiplayer_is_master()) {
-        multi_schedule_master_tx();
-    }
+    multi_schedule_tx();
 }
 
 
@@ -300,6 +319,12 @@ static void multi_serial_init()
 
     multi_register_serial_isr(multi_serial_isr);
     multi_enable_serial_irq(1);
+
+    if (!multiplayer_is_master()) {
+        REG_SIOMLT_SEND = 0;
+    }
+
+    multi_schedule_tx();
 }
 
 

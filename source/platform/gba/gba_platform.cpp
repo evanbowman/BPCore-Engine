@@ -2962,7 +2962,7 @@ using TxInfo = WireMessage;
 using RxInfo = WireMessage;
 
 
-struct MultiplayerComms {
+static struct MultiplayerComms {
     int rx_loss = 0;
     int tx_loss = 0;
 
@@ -2995,6 +2995,7 @@ struct MultiplayerComms {
         int rx_iter_state = 0;
         RxInfo* rx_current_message = nullptr;
         bool rx_current_all_zeroes = true;
+        bool primed = false;
     } rx_slots_[3];
 
 
@@ -3032,7 +3033,7 @@ static TxInfo* tx_ring_pop()
 }
 
 
-static void multi_tx_send(volatile unsigned short* output)
+static void multi_tx_send(unsigned short* output)
 {
     auto& mc = multiplayer_comms;
 
@@ -3046,12 +3047,14 @@ static void multi_tx_send(volatile unsigned short* output)
     }
 
     if (mc.tx_current_message) {
-        // StringBuffer<32> str = "put: ";
-        // for (int i = 1; i < 12; ++i) {
-        //     str.push_back(((char*)mc.tx_current_message->data_)[i]);
-        // }
-        // info(*::platform, str.c_str());
-        // while (true) ;
+        if (mc.tx_iter_state == 1) {
+            StringBuffer<32> str = "put: ";
+            for (int i = 1; i < 12; ++i) {
+                str.push_back(((char*)mc.tx_current_message->data_)[i]);
+            }
+            info(*::platform, str.c_str());
+            while (true) ;
+        }
         *output = mc.tx_current_message->data_[mc.tx_iter_state++];
     } else {
         mc.null_bytes_written += 2;
@@ -3121,12 +3124,26 @@ static void multi_rx_receive(int slot, unsigned short data)
     auto& mc = multiplayer_comms;
     auto& s = multiplayer_comms.rx_slots_[slot];
 
+    // Wait for the first non-zero data on the stream, before trying to frame a
+    // packet. After data stream is 'primed', all data is assumed to be grouped
+    // into streams of packets, one after another.
+    if (data == 0 and not s.primed) {
+        return;
+    } else if (data) {
+        s.primed = true;
+    }
 
     if (s.rx_iter_state == message_iters) {
         if (s.rx_current_message) {
             if (s.rx_current_all_zeroes) {
                 mc.rx_message_pool.post(s.rx_current_message);
             } else {
+                StringBuffer<32> str = "got: ";
+                for (int i = 0; i < 12; ++i) {
+                    str.push_back(((char*)&data)[i]);
+                }
+                info(*::platform, str.c_str());
+                while (true) ;
                 rx_ring_push(s.rx_current_message);
             }
         }
@@ -3143,14 +3160,27 @@ static void multi_rx_receive(int slot, unsigned short data)
     if (s.rx_current_message) {
         if (s.rx_current_all_zeroes and data) {
             s.rx_current_all_zeroes = false;
-            StringBuffer<32> str = "got: ";
-            for (int i = 0; i < 2; ++i) {
-                str.push_back(((char*)&data)[i]);
-            }
-            info(*::platform, str.c_str());
-            while (true) ;
+
+            // StringBuffer<32> str = "got: ";
+            // char buffer[10];
+            // english__to_string(s.rx_iter_state, buffer, 10);
+            // str += buffer;
+            // str += ", ";
+
+            // for (int i = 0; i < 2; ++i) {
+            //     str.push_back(((char*)&data)[i]);
+            // }
+            // info(*::platform, str.c_str());
+            // while (true) ;
         }
         s.rx_current_message->data_[s.rx_iter_state++] = data;
+        // StringBuffer<32> str = "got: ";
+        // for (int i = 0; i < 2; ++i) {
+        //     str.push_back(((char*)&s.rx_current_message->data_[])[i]);
+        // }
+        // info(*::platform, str.c_str());
+        // while (true) ;
+
     } else {
         s.rx_iter_state++;
     }
@@ -3160,14 +3190,17 @@ static void multi_rx_receive(int slot, unsigned short data)
 static int connection_set = 0;
 
 
+void multi_send_function(unsigned short* output)
+{
+    multi_tx_send(output);
+}
+
+
 void multi_data_function(unsigned short host_data,
                          unsigned short p1_data,
                          unsigned short p2_data,
-                         unsigned short p3_data,
-                         volatile unsigned short* output)
+                         unsigned short p3_data)
 {
-    multi_tx_send(output);
-
     switch (multi_id()) {
     case multi_PlayerId_unknown:
         return;
@@ -3362,6 +3395,7 @@ static void multiplayer_init()
 
     multi_Status connect_result = multi_connect(multi_connect_callback,
                                                 multi_host_callback,
+                                                multi_send_function,
                                                 multi_data_function);
 
 

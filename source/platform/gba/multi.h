@@ -26,8 +26,9 @@ multi_PlayerId multi_connection_set();
 typedef void (*multi_DataCallback)(unsigned short host_data,
                                    unsigned short p1_data,
                                    unsigned short p2_data,
-                                   unsigned short p3_data,
-                                   volatile unsigned short* output);
+                                   unsigned short p3_data);
+
+typedef void (*multi_SendCallback)(unsigned short* output);
 
 
 typedef void (*multi_ConnectedCallback)(multi_PlayerId id, int connected);
@@ -43,6 +44,7 @@ typedef int (*multi_ConnectionHostCallback)();
 // that were registered are now associated with with the multiplayer session.
 multi_Status multi_connect(multi_ConnectedCallback device_connected,
                            multi_ConnectionHostCallback host_init_callback,
+                           multi_SendCallback send_callback,
                            multi_DataCallback data_callback);
 
 
