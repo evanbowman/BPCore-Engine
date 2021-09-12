@@ -213,7 +213,21 @@ Returns time since the last delta call in microseconds. Because games written in
 Feed the engine's watchdog counter. You do not need to call this function if you are already calling the clear function. But if the engine does not receive `clear()` and `display()` calls for more than ten seconds, it assumes that a critical error occurred, and reloads the ROM. If you are running a complicated piece of code, perhaps when loading a level, you may want to feed the watchdog every so often. Or, if your program is not graphically intensive, and only rarely refreshes the screen, you may need to manually feed the watchdog.
 
 * `startup_time()`
-If the cartridge hardware includes a realtime clock (RTC), `startup_time()` returns a table representing the value of the RTC when the engine booted up. There is currently no way in the engine to overwrite the value of the RTC chip, so if you want to allow a user to overwrite the clock, you can achieve the same behavior by storing user supplied values in SRAM, and adding them as offsets to the result of startup_time(). If you need to know the current time, you can add the microsecond result of the `delta()` API call to the startup time.
+If the cartridge hardware includes a realtime clock (RTC), `startup_time()` returns a table representing the value of the RTC when the engine booted up. There is currently no way in the engine to overwrite the value of the RTC chip, so if you want to allow a user to overwrite the clock, you can achieve the same behavior by storing user supplied values in SRAM, and adding them as offsets to the result of startup_time(). You can keep track of the elapsed time since startup by aggregating the results of the `delta()` API calls.
+
+Result table format (string keys, integer values)
+```lua
+{
+   year = 21,
+   month = 8,
+   day = 12,
+   hour = 11,
+   minute = 6,
+   second = 3
+}
+```
+
+(Added in version 2021.9.12.1)
 
 * `_BP_VERSION`
 Starting with version 2021.9.12.0, the engine stores a version string in the `_BP_VERSION` variable.

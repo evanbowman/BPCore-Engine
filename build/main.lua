@@ -8,11 +8,7 @@ tile(0, 8, 9, 27)
 tile(0, 7, 9, 16)
 tile(0, 6, 9, tile(0, 9, 9))
 
-st = startup_time()
-if st then
-   print(tostring(st.year), 3, 3)
-end
-
+print(_BP_VERSION, 3, 3)
 
 txtr(2, "tile0.bmp")
 
