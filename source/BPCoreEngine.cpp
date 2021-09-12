@@ -58,10 +58,12 @@ static void disconnect()
         packet.data_ = reinterpret_cast<const byte*>(message);
         packet.length_ = Platform::NetworkPeer::max_message_size;
 
+        int tries = 5000;
         while (not platform->network_peer().send_message(packet)) {
-            if (not platform->network_peer().is_connected()) {
+            if (tries == 0 or not platform->network_peer().is_connected()) {
                 return;
             }
+            --tries;
         }
 
         // Make sure that we give the packet a chance to be written, before
