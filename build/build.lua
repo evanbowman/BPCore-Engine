@@ -263,11 +263,6 @@ function convert_tileset(path)
    local w = img.width
    local h = img.height
 
-   if h ~= 8 then
-      -- TODO: support rectangular sizes
-      error("tileset must be eight pixels high")
-   end
-
    local palette = {}
 
    map_color = make_color_mapper(palette)
@@ -275,10 +270,17 @@ function convert_tileset(path)
    -- Transparent color constant should have index 0
    map_color(format_color(255, 0, 255))
 
+   -- divided by two, b/c four bits per pixel
+   if (w * h) / 2 > 7168 then
+      error("image " .. path .. " too large!")
+   end
+
    local img_data = ""
 
-   for block_x = 0, w - 1, 8 do
-      img_data = img_data .. write_tile(block_x, 0, img, map_color)
+   for block_y = 0, h - 1, 8 do
+      for block_x = 0, w - 1, 8 do
+         img_data = img_data .. write_tile(block_x, block_y, img, map_color)
+      end
    end
 
    return img_data, write_palette(palette, path)

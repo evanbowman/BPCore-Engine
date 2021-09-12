@@ -1716,7 +1716,6 @@ void Platform::Logger::set_threshold(Severity severity)
 
 void Platform::Logger::log(Severity level, const char* msg)
 {
-    return;
     if (static_cast<int>(level) < static_cast<int>(::log_threshold)) {
         return;
     }
