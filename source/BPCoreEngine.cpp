@@ -4,6 +4,7 @@
 #include "localization.hpp"
 #include "string.hpp"
 #include "number/endian.hpp"
+#include "version.hpp"
 
 extern "C" {
 #include "lua/lualib.h"
@@ -677,6 +678,24 @@ BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
         lua_setglobal(lua_, "_IRAM");
         lua_pushinteger(lua_, (intptr_t)(byte*)0x0E000000);
         lua_setglobal(lua_, "_SRAM");
+
+        {
+            StringBuffer<32> fmt;
+            char buffer[12];
+            english__to_string(PROGRAM_MAJOR_VERSION, buffer, 10);
+            fmt += buffer;
+            fmt += ".";
+            english__to_string(PROGRAM_MINOR_VERSION, buffer, 10);
+            fmt += buffer;
+            fmt += ".";
+            english__to_string(PROGRAM_SUBMINOR_VERSION, buffer, 10);
+            fmt += buffer;
+            fmt += ".";
+            english__to_string(PROGRAM_VERSION_REVISION, buffer, 10);
+            fmt += buffer;
+            lua_pushlstring(lua_, fmt.c_str(), fmt.length());
+            lua_setglobal(lua_, "_BP_VERSION");
+        }
 
         if (auto script = pf.fs().get_file(next_script->c_str()).data_) {
             if (luaL_loadstring(lua_, script)) {
