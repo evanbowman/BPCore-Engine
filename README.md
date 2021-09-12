@@ -177,7 +177,7 @@ next_script("other_file.lua")
 
 ### Serial I/O
 
-You can use the engine's serial I/O library to send data to another GBA device, using the GBA's multiplayer link mode. Currently, the engine only supports two connected devices, with plans to support four devices in the future.
+You can use the engine's asynchronous I/O library to send data to another GBA device, using the GBA's multiplayer link mode. Currently, the engine only supports two connected devices, with plans to support four devices in the future.
 
 BPCore's implementation of network I/O does not guarantee that messages will be received in-order, or even received at all. Each device maintains a 64-packet receive queue, as well as a 32-packet send queue. Overflowing either the send queue in the sender, or the receive queue in the receiver, will result in packet loss. That said, I've used this network implementation in several GBA games; Blind Jump, Skyland, etc., and I've never had any problems with packet loss. If you limit your send() calls to a few packets per frame, you will never see any message loss.
 
