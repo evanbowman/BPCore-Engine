@@ -212,6 +212,9 @@ Returns time since the last delta call in microseconds. Because games written in
 * `fdog()`
 Feed the engine's watchdog counter. You do not need to call this function if you are already calling the clear function. But if the engine does not receive `clear()` and `display()` calls for more than ten seconds, it assumes that a critical error occurred, and reloads the ROM. If you are running a complicated piece of code, perhaps when loading a level, you may want to feed the watchdog every so often. Or, if your program is not graphically intensive, and only rarely refreshes the screen, you may need to manually feed the watchdog.
 
+* `_BP_VERSION`
+Starting with version 2021.9.12.0, the engine stores a version string in the `_BP_VERSION` variable.
+
 ### Reserved words
 
 The function `syscall`, as well as the variable `util`, should be considered reserved for future use. Do not use these variable names, if you want to seamlessly migrate to new versions of the engine.
