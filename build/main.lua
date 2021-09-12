@@ -3,12 +3,12 @@ fade(1)
 
 txtr(0, "overlay.bmp")
 
-tile(0, 9, 9, 28)
+tile(0, 9, 9, 3)
 tile(0, 8, 9, 27)
 tile(0, 7, 9, 16)
 tile(0, 6, 9, tile(0, 9, 9))
 
-print("Hello, world!", 3, 3)
+print(_BP_VERSION, 3, 3)
 
 txtr(2, "tile0.bmp")
 

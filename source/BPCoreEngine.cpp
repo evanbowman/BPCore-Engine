@@ -596,6 +596,42 @@ static const struct {
           ::next_script = lua_tostring(L, 1);
           return 0;
       }},
+     {"startup_time",
+      [](lua_State* L) -> int {
+          if (auto tm = platform->startup_time()) {
+              lua_createtable(L, 0, 6);
+
+              lua_pushstring(L, "year");
+              lua_pushinteger(L, tm->date_.year_);
+              lua_settable(L, -3);
+
+              lua_pushstring(L, "month");
+              lua_pushinteger(L, tm->date_.month_);
+              lua_settable(L, -3);
+
+              lua_pushstring(L, "day");
+              lua_pushinteger(L, tm->date_.day_);
+              lua_settable(L, -3);
+
+              lua_pushstring(L, "hour");
+              lua_pushinteger(L, tm->hour_);
+              lua_settable(L, -3);
+
+              lua_pushstring(L, "minute");
+              lua_pushinteger(L, tm->minute_);
+              lua_settable(L, -3);
+
+              lua_pushstring(L, "second");
+              lua_pushinteger(L, tm->second_);
+              lua_settable(L, -3);
+
+              return 1;
+
+          } else {
+              lua_pushnil(L);
+              return 1;
+          }
+      }}
 };
 
 
