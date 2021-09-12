@@ -10,22 +10,14 @@ tile(0, 6, 9, tile(0, 9, 9))
 
 print(_BP_VERSION, 3, 3)
 
---txtr(2, "tile0.bmp")
+txtr(2, "tile0.bmp")
 
 
-txtr(2, "test.bmp")
-
-function draw_img(layer, x, y, w, h)
-   local t = 0
-   for yy = 0, h - 1 do
-      for xx = 0, w - 1 do
-         tile(layer, x + xx, y + yy, t)
-         t = t + 1
-      end
+for i = 15, 45 do
+   for j = 15, 45 do
+      tile(2, i, j, 1)
    end
 end
-
-draw_img(2, 0, 0, 30, 4)
 
 
 fade(0)
@@ -74,7 +66,7 @@ function update(dt)
       y = y + 2
    end
 
-   -- camera(x, y)
+   camera(x, y)
 end
 
 
