@@ -1696,7 +1696,7 @@ SynchronizedBase::~SynchronizedBase()
 // logs. The platform implementation isn't supposed to need to know about the
 // layout of the game's save data, but, in this particular implementation, we're
 // using the cartridge ram as a logfile.
-static const u32 initial_log_write_loc = sizeof(PersistentData);
+static const u32 initial_log_write_loc = 32000 - 16;
 static u32 log_write_loc = initial_log_write_loc;
 
 
