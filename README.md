@@ -260,6 +260,7 @@ A special memory region dedicated to save data. Writes can be quite slow, but th
 
 * [Meteorain, by Dr. Ludos](https://github.com/drludos/meteorain-gba)
 * [Unicode eBook Reader](https://github.com/evanbowman/bpcore-gba-book-reader)
+* [Simple Image Demo](https://github.com/evanbowman/bpcore-simple-image-demo)
 
 ## A tiny demo
 ``` Lua
