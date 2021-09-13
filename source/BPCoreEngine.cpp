@@ -165,11 +165,44 @@ static const struct {
          disconnect();
          return 0;
      }},
+    {"send_iram",
+     [](lua_State* L) -> int {
+
+         static const auto msg_size = Platform::NetworkPeer::max_message_size;
+
+         const auto addr = lua_tointeger(L, 1);
+
+         if (addr < (intptr_t)__ram or
+             (int)(addr + (msg_size - 1)) > (intptr_t)__ram + __ram_size) {
+             luaL_error(L, "send_iram address out of bounds");
+             return 1;
+         }
+
+         char message[msg_size];
+         pkt_set_origin(message);
+
+         __builtin_memcpy(message + 1, (u8*)addr, msg_size - 1);
+
+         Platform::NetworkPeer::Message packet;
+         packet.data_ = (const byte*)message;
+         packet.length_ = sizeof message;
+
+         while (not platform->network_peer().send_message(packet)) {
+             if (not platform->network_peer().is_connected()) {
+                 lua_pushboolean(L, false);
+                 return 1;
+             }
+         }
+
+         lua_pushboolean(L, true);
+         return 1;
+     }},
     {"send",
      [](lua_State* L) -> int {
          char message[Platform::NetworkPeer::max_message_size];
          __builtin_memset(message + 1, 0, (sizeof message) - 1);
          pkt_set_origin(message);
+
 
          const char* str = lua_tostring(L, 1);
          const auto len = str_len(str);
@@ -195,14 +228,41 @@ static const struct {
          lua_pushboolean(L, true);
          return 1;
      }},
+    {"recv_iram",
+     [](lua_State* L) -> int {
+
+         static const auto msg_size = Platform::NetworkPeer::max_message_size;
+
+         const auto addr = lua_tointeger(L, 1);
+
+         if (addr < (intptr_t)__ram or
+             (int)(addr + (msg_size - 1)) > (intptr_t)__ram + __ram_size) {
+             luaL_error(L, "recv_iram address out of bounds");
+             return 1;
+         }
+
+         if (auto message = platform->network_peer().poll_message()) {
+             __builtin_memcpy((u8*)addr,
+                              (const char*)message->data_,
+                              msg_size);
+
+             platform->
+                 network_peer()
+                 .poll_consume(Platform::NetworkPeer::max_message_size);
+             lua_pushboolean(L, true);
+             return 1;
+         }
+         lua_pushboolean(L, false);
+         return 1;
+     }},
     {"recv",
      [](lua_State* L) -> int {
          if (auto message = platform->network_peer().poll_message()) {
-             lua_pushlstring(L,
-                             (const char*)message->data_,
+             lua_pushlstring(L, (const char*)message->data_,
                              Platform::NetworkPeer::max_message_size);
-             platform->network_peer().poll_consume(
-                 Platform::NetworkPeer::max_message_size);
+             platform->
+                 network_peer()
+                 .poll_consume(Platform::NetworkPeer::max_message_size);
              return 1;
          }
          lua_pushnil(L);

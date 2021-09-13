@@ -297,9 +297,9 @@ function convert_spritesheet(path)
    local w = img.width
    local h = img.height
 
-   if h ~= 16 then
+   if h % 16 ~= 0 or w % 16 ~= 0 then
       -- TODO: support rectangular sizes
-      error("spritesheet must be sixteen pixels high")
+      error("spritesheet dimensions must be a multiple of 16")
    end
 
    local palette = {}
@@ -311,11 +311,13 @@ function convert_spritesheet(path)
 
    local img_data = ""
 
-   for meta_x = 0, w - 1, 16 do
-      for block_y = 0, h - 1, 8 do
-         for block_x = meta_x, meta_x + 16 - 1, 8 do
-            local tile_data = write_tile(block_x, block_y, img, map_color)
-            img_data = img_data .. tile_data
+   for meta_y = 0, h - 1, 16 do
+      for meta_x = 0, w - 1, 16 do
+         for block_y = meta_y, meta_y + 16 - 1, 8 do
+            for block_x = meta_x, meta_x + 16 - 1, 8 do
+               local tile_data = write_tile(block_x, block_y, img, map_color)
+               img_data = img_data .. tile_data
+            end
          end
       end
    end
@@ -332,17 +334,23 @@ bundle = io.open(app_name, "ab")
 
 
 -- The engine uses this key to find the resource bundle within the rom.
+
+-- NOTE: The engine _used to_ use this string to find the resource bundle within
+-- the ROM. Now, we use an address provided by the linker. We write the
+-- filesystem id for backwards compatibility purposes (if someone uses build.lua
+-- with an old engine ROM), as well as to detect within the engine whether
+-- someone forgot to attach the resource bundle.
 bundle:write("core_filesys")
 
 
 function bundle_resource(fname, data)
    -- Bundle Resource Header:
    --
-   -- char name[32]
-   -- char size[16]
+   -- char name[32] - filename
+   -- char size[16] - string representation of the file size
    -- contents[...]
-   -- null byte
-   -- padding (for word alignment)
+   -- null byte     - null terminator
+   -- padding (word alignment) - we can load stuff faster from aligned addresses
 
    bundle:write(fname)
 
@@ -409,7 +417,7 @@ for _, fname in pairs(application["misc"]) do
 end
 
 
--- write one empty header
+-- write one empty header.
 for i = 0, 48 do
    bundle:write("\0")
 end

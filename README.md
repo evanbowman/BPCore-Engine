@@ -203,6 +203,47 @@ end
 * `disconnect()`
 Close the multiplayer session. During the diconnect process, the engine will send "$disconnect!" to the other device, substituting $ with the device id. Calls to connect() will implicitly call disconnect() if there is already an active connection.
 
+### Advanced Serial I/O
+
+Admittedly, upacking/unpacking binary data from Lua strings can have a performance impact in tight loops. As of version 21.9.13.1, the engine includes two extra send/recv functions, `send_iram()` and `recv_iram()`, allowing you to read plain bytes out of the packets with `peek()` and `poke()`:
+
+* `send_iram(iram_address)`:
+Send raw 11 byte packet starting at address iram_address. Return true upon success, false upon falure.
+
+* `recv_iram(iram_address)`:
+If a packet exists in the receive queue, map that 12 byte packet into IRAM, starting at iram_address. Like with `recv()`, the first byte of the packet represents the originating device, followed by the 11 bytes of data. Returns false if the receive queue was empty, true otherwise.
+
+Example: advanced serial I/O usage, sends coordinates back and forth between devices:
+``` lua
+connect(10)
+
+local x = 0
+local y = 0
+local ox = 0
+local oy = 0
+
+while true do
+
+   if connected then
+      poke4(_IRAM, x)
+      poke4(_IRAM + 4, y)
+      send_iram(_IRAM)
+
+      local got_msg = recv_iram(_IRAM)
+      while got_msg do
+         sender = peek(_IRAM) -- message originator
+         ox = peek4(_IRAM + 1) -- x, y from other device
+         oy = peek4(_IRAM + 5)
+         got_msg = recv_iram(_IRAM)
+      end
+
+   end
+
+   clear()
+   display()
+end
+```
+
 
 ### System
 
