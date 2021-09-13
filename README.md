@@ -215,6 +215,9 @@ If a packet exists in the receive queue, map that 12 byte packet into IRAM, star
 
 Example: advanced serial I/O usage, sends coordinates back and forth between devices:
 ``` lua
+while not btnp(0) do
+   -- wait on a button press, then connect
+end
 connect(10)
 
 local x = 0
@@ -224,19 +227,16 @@ local oy = 0
 
 while true do
 
-   if connected then
-      poke4(_IRAM, x)
-      poke4(_IRAM + 4, y)
-      send_iram(_IRAM)
+   poke4(_IRAM, x)
+   poke4(_IRAM + 4, y)
+   send_iram(_IRAM)
 
-      local got_msg = recv_iram(_IRAM)
-      while got_msg do
-         sender = peek(_IRAM) -- message originator
-         ox = peek4(_IRAM + 1) -- x, y from other device
-         oy = peek4(_IRAM + 5)
-         got_msg = recv_iram(_IRAM)
-      end
-
+   local got_msg = recv_iram(_IRAM)
+   while got_msg do
+      sender = peek(_IRAM) -- message originator
+      ox = peek4(_IRAM + 1) -- x, y from other device
+      oy = peek4(_IRAM + 5)
+      got_msg = recv_iram(_IRAM)
    end
 
    clear()
