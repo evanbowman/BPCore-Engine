@@ -127,11 +127,13 @@ static inline const char* fill_tilemap(const Filesystem::FileData& f,
             }
             set_tile((Layer)layer, dest_x + x, dest_y + y, val);
         }
-        if (not s.next_row()) {
-            return "out of bounds access to csv in y dimension";
-        }
-        if (not s.skip(src_x)) {
-            return "unexpected end of data while parsing csv";
+        if (y < height - 1) {
+            if (not s.next_row()) {
+                return "out of bounds access to csv in y dimension";
+            }
+            if (not s.skip(src_x)) {
+                return "unexpected end of data while parsing csv";
+            }
         }
     }
 
