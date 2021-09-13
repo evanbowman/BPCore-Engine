@@ -216,6 +216,8 @@ If a packet exists in the receive queue, map that 12 byte packet into IRAM, star
 Example: advanced serial I/O usage, sends coordinates back and forth between devices:
 ``` lua
 while not btnp(0) do
+   clear()
+   display()
    -- wait on a button press, then connect
 end
 connect(10)
