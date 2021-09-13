@@ -399,3 +399,7 @@ The overlay tile layer shares graphics memory with the system font. If you load 
   <img src="index_tile.png"/>
 </p>
 
+## fade() and custom font colors
+
+`fade()` does not apply to colored text, i.e. if you passed custom color hex values to the print() function. Supporting this would be practically unrealistic given the cpu frequency on a gameboy advance (we cannot realistically linearly interpolate between 256 arbitrary colors within a reasonable amount of time). Regular text, using the default overlay palette, can be faded. 
+
