@@ -65,8 +65,8 @@ void Game::init_script(Platform& pfrm)
                           if (argc == 1) {
                               L_EXPECT_OP(0, integer);
 
-                              game->persistent_data().level_
-                                  .set(lisp::get_op(0)->integer_.value_);
+                              game->persistent_data().level_.set(
+                                  lisp::get_op(0)->integer_.value_);
 
                           } else {
                               return lisp::make_integer(
@@ -363,32 +363,23 @@ void Game::init_script(Platform& pfrm)
             return L_NIL;
         }));
 
-#define L_ITEM_K(NAME) \
-    {"item-" #NAME, (int)Item::Type::NAME}
+#define L_ITEM_K(NAME)                                                         \
+    {                                                                          \
+        "item-" #NAME, (int)Item::Type::NAME                                   \
+    }
 
     static constexpr const lisp::IntegralConstant constant_table[] = {
-        {"boss-0-level", boss_0_level},
-        {"boss-1-level", boss_1_level},
-        {"boss-2-level", boss_2_level},
-        {"player", 0},
-        L_ITEM_K(worker_notebook_1),
-        L_ITEM_K(blaster),
-        L_ITEM_K(accelerator),
-        L_ITEM_K(lethargy),
-        L_ITEM_K(old_poster_1),
-        L_ITEM_K(map_system),
-        L_ITEM_K(explosive_rounds_2),
-        L_ITEM_K(seed_packet),
-        L_ITEM_K(engineer_notebook_2),
-        L_ITEM_K(signal_jammer),
-        L_ITEM_K(navigation_pamphlet),
-        L_ITEM_K(orange),
-        L_ITEM_K(orange_seeds),
-        L_ITEM_K(long_jump_z2),
-        L_ITEM_K(long_jump_z3),
-        L_ITEM_K(long_jump_z4),
-        L_ITEM_K(engineer_notebook_1),
-        L_ITEM_K(worker_notebook_2)};
+        {"boss-0-level", boss_0_level}, {"boss-1-level", boss_1_level},
+        {"boss-2-level", boss_2_level}, {"player", 0},
+        L_ITEM_K(worker_notebook_1),    L_ITEM_K(blaster),
+        L_ITEM_K(accelerator),          L_ITEM_K(lethargy),
+        L_ITEM_K(old_poster_1),         L_ITEM_K(map_system),
+        L_ITEM_K(explosive_rounds_2),   L_ITEM_K(seed_packet),
+        L_ITEM_K(engineer_notebook_2),  L_ITEM_K(signal_jammer),
+        L_ITEM_K(navigation_pamphlet),  L_ITEM_K(orange),
+        L_ITEM_K(orange_seeds),         L_ITEM_K(long_jump_z2),
+        L_ITEM_K(long_jump_z3),         L_ITEM_K(long_jump_z4),
+        L_ITEM_K(engineer_notebook_1),  L_ITEM_K(worker_notebook_2)};
 
     const auto constant_count =
         sizeof constant_table / sizeof(lisp::IntegralConstant);

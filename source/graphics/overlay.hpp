@@ -60,7 +60,9 @@ private:
 };
 
 
-void print_str(Platform& pfrm, const char* str, const OverlayCoord& pos,
+void print_str(Platform& pfrm,
+               const char* str,
+               const OverlayCoord& pos,
                const Text::OptColors& colors = {});
 
 

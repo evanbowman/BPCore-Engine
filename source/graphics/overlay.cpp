@@ -98,17 +98,20 @@ void Text::assign(const char* str, const OptColors& colors)
 }
 
 
-void print_str(Platform& pfrm, const char* str, const OverlayCoord& pos,
+void print_str(Platform& pfrm,
+               const char* str,
+               const OverlayCoord& pos,
                const Text::OptColors& colors)
 {
     auto write_pos = static_cast<u8>(pos.x);
 
-    utf8::scan([&](const utf8::Codepoint& cp, const char* raw, int) {
-               print_char(pfrm, cp, {write_pos, pos.y}, colors);
-                   ++write_pos;
-               },
-               str,
-               str_len(str));
+    utf8::scan(
+        [&](const utf8::Codepoint& cp, const char* raw, int) {
+            print_char(pfrm, cp, {write_pos, pos.y}, colors);
+            ++write_pos;
+        },
+        str,
+        str_len(str));
 }
 
 

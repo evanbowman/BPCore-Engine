@@ -1,11 +1,9 @@
 #include "sprite.hpp"
 
 
-Sprite::Sprite() :
-    alpha_(Alpha::opaque),
-    size_(Size::w16_h16),
-    flip_x_(false),
-    flip_y_(false)
+Sprite::Sprite()
+    : alpha_(Alpha::opaque), size_(Size::w16_h16), flip_x_(false),
+      flip_y_(false)
 {
 }
 

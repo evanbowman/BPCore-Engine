@@ -808,8 +808,6 @@ const ZoneInfo& current_zone(Game& game)
 }
 
 
-
-
 bool operator==(const ZoneInfo& lhs, const ZoneInfo& rhs)
 {
     return lhs.title_line_2 == rhs.title_line_2;

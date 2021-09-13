@@ -1,21 +1,22 @@
 #include "BPCoreEngine.hpp"
-#include "umm_malloc/src/umm_malloc.h"
 #include "graphics/overlay.hpp"
 #include "localization.hpp"
-#include "string.hpp"
 #include "number/endian.hpp"
+#include "string.hpp"
+#include "tileDataStream.hpp"
+#include "umm_malloc/src/umm_malloc.h"
 #include "version.hpp"
 
 extern "C" {
-#include "lua/lualib.h"
 #include "lua/lauxlib.h"
+#include "lua/lualib.h"
 }
 
 
 static Platform* platform;
 static std::optional<StringBuffer<48>> next_script;
 
-static void *umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
+static void* umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 {
     if (nsize == 0) {
         umm_free(ptr);
@@ -50,8 +51,7 @@ static void disconnect()
         platform->sleep(10);
 
         char message[Platform::NetworkPeer::max_message_size] = {
-            '_', 'd', 'i', 's', 'c', 'o', 'n', 'n', 'e', 'c', 't', '!'
-        };
+            '_', 'd', 'i', 's', 'c', 'o', 'n', 'n', 'e', 'c', 't', '!'};
 
         pkt_set_origin(message);
 
@@ -78,6 +78,68 @@ static void disconnect()
 }
 
 
+void set_tile(Layer l, int x, int y, int t)
+{
+    switch (l) {
+    case Layer::overlay:
+        // NOTE: The first 82 tiles in the overlay graphics layer are
+        // reserved for glyphs. We adjust the user-supplied indices
+        // accordingly.
+        platform->set_tile(l, x, y, t + 83);
+        break;
+
+    case Layer::map_1:
+    case Layer::map_0:
+    case Layer::background:
+        platform->set_tile(l, x, y, t);
+        break;
+    }
+}
+
+
+static inline const char* fill_tilemap(const Filesystem::FileData& f,
+                                       int layer,
+                                       int width,
+                                       int height,
+                                       int dest_x,
+                                       int dest_y,
+                                       int src_x,
+                                       int src_y)
+{
+    CSVTileDataStream s(f.data_, f.size_);
+
+    // Jump to the target row in the src datastream
+    while (src_y--) {
+        if (not s.next_row()) {
+            return "error: csv size mismatch or formatting error";
+        }
+    }
+
+    if (not s.skip(src_x)) {
+        return "error: invalid csv size";
+    }
+
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            u16 val;
+            if (not s.read(&val)) {
+                return "out of bounds access to csv in x dimension";
+            }
+            set_tile((Layer)layer, dest_x + x, dest_y + y, val);
+        }
+        if (y < height - 1) {
+            if (not s.next_row()) {
+                return "out of bounds access to csv in y dimension";
+            }
+            if (not s.skip(src_x)) {
+                return "unexpected end of data while parsing csv";
+            }
+        }
+    }
+
+    return nullptr;
+}
+
 
 static const struct {
     const char* name_;
@@ -91,7 +153,8 @@ static const struct {
     {"connect",
      [](lua_State* L) -> int {
          disconnect();
-         platform->network_peer().connect(nullptr, seconds(lua_tointeger(L, 1)));
+         platform->network_peer().connect(nullptr,
+                                          seconds(lua_tointeger(L, 1)));
          lua_pushboolean(L, platform->network_peer().is_connected());
          return 1;
      }},
@@ -133,11 +196,11 @@ static const struct {
     {"recv",
      [](lua_State* L) -> int {
          if (auto message = platform->network_peer().poll_message()) {
-             lua_pushlstring(L, (const char*)message->data_,
+             lua_pushlstring(L,
+                             (const char*)message->data_,
                              Platform::NetworkPeer::max_message_size);
-             platform->
-                 network_peer()
-                 .poll_consume(Platform::NetworkPeer::max_message_size);
+             platform->network_peer().poll_consume(
+                 Platform::NetworkPeer::max_message_size);
              return 1;
          }
          lua_pushnil(L);
@@ -150,493 +213,542 @@ static const struct {
          platform->screen().clear();
          return 0;
      }},
-     {"display",
-      [](lua_State* L) -> int {
-          platform->screen().display();
-          platform->keyboard().poll();
-          return 0;
-      }},
-     {"delta",
-      [](lua_State* L) -> int {
-          lua_pushnumber(L, platform->delta_clock().reset());
-          return 1;
-      }},
-     {"btn",
-      [](lua_State* L) -> int {
-          const int button = lua_tonumber(L, 1);
-          if (button >= static_cast<int>(Key::count)) {
-              lua_pushboolean(L, false);
-          } else {
-              const auto k = static_cast<Key>(button);
-              lua_pushboolean(L, platform->keyboard().pressed(k));
-          }
-          return 1;
-      }},
-     {"btnp",
-      [](lua_State* L) -> int {
-          const int button = lua_tonumber(L, 1);
-          if (button >= static_cast<int>(Key::count)) {
-              lua_pushboolean(L, false);
-          } else {
-              const auto k = static_cast<Key>(button);
-              lua_pushboolean(L, platform->keyboard().down_transition(k));
-          }
-          return 1;
-      }},
-     {"btnnp",
-      [](lua_State* L) -> int {
-          const int button = lua_tonumber(L, 1);
-          if (button >= static_cast<int>(Key::count)) {
-              lua_pushboolean(L, false);
-          } else {
-              const auto k = static_cast<Key>(button);
-              lua_pushboolean(L, platform->keyboard().up_transition(k));
-          }
-          return 1;
-      }},
-     {"print",
-      [](lua_State* L) -> int {
-          const int argc = lua_gettop(L);
-          Text::OptColors c;
-          if (argc > 3) {
-              c.emplace();
-              c->foreground_ =
-                  static_cast<ColorConstant>(lua_tointeger(L, 4));
-          }
-          if (argc > 4) {
-              c->background_ =
-                  static_cast<ColorConstant>(lua_tointeger(L, 5));
-          }
-          print_str(*platform, lua_tostring(L, 1),
-                    OverlayCoord {
-                        (u8)lua_tonumber(L, 2),
-                        (u8)lua_tonumber(L, 3)
-                    }, c);
-          return 0;
-      }},
-     {"syscall",
-      [](lua_State* L) -> int {
-          lua_pushboolean(L, false);
-          return 1;
-      }},
-     {"txtr",
-      [](lua_State* L) -> int {
-          const int layer = lua_tonumber(L, 1);
-          const char* filename = lua_tostring(L, 2);
+    {"display",
+     [](lua_State* L) -> int {
+         platform->screen().display();
+         platform->keyboard().poll();
+         return 0;
+     }},
+    {"delta",
+     [](lua_State* L) -> int {
+         lua_pushnumber(L, platform->delta_clock().reset());
+         return 1;
+     }},
+    {"btn",
+     [](lua_State* L) -> int {
+         const int button = lua_tonumber(L, 1);
+         if (button >= static_cast<int>(Key::count)) {
+             lua_pushboolean(L, false);
+         } else {
+             const auto k = static_cast<Key>(button);
+             lua_pushboolean(L, platform->keyboard().pressed(k));
+         }
+         return 1;
+     }},
+    {"btnp",
+     [](lua_State* L) -> int {
+         const int button = lua_tonumber(L, 1);
+         if (button >= static_cast<int>(Key::count)) {
+             lua_pushboolean(L, false);
+         } else {
+             const auto k = static_cast<Key>(button);
+             lua_pushboolean(L, platform->keyboard().down_transition(k));
+         }
+         return 1;
+     }},
+    {"btnnp",
+     [](lua_State* L) -> int {
+         const int button = lua_tonumber(L, 1);
+         if (button >= static_cast<int>(Key::count)) {
+             lua_pushboolean(L, false);
+         } else {
+             const auto k = static_cast<Key>(button);
+             lua_pushboolean(L, platform->keyboard().up_transition(k));
+         }
+         return 1;
+     }},
+    {"print",
+     [](lua_State* L) -> int {
+         const int argc = lua_gettop(L);
+         Text::OptColors c;
+         if (argc > 3) {
+             c.emplace();
+             c->foreground_ = static_cast<ColorConstant>(lua_tointeger(L, 4));
+         }
+         if (argc > 4) {
+             c->background_ = static_cast<ColorConstant>(lua_tointeger(L, 5));
+         }
+         print_str(*platform,
+                   lua_tostring(L, 1),
+                   OverlayCoord{(u8)lua_tonumber(L, 2), (u8)lua_tonumber(L, 3)},
+                   c);
+         return 0;
+     }},
+    {"syscall",
+     [](lua_State* L) -> int {
+         lua_pushboolean(L, false);
+         return 1;
+     }},
+    {"txtr",
+     [](lua_State* L) -> int {
+         const int layer = lua_tonumber(L, 1);
+         const char* filename = lua_tostring(L, 2);
 
-          std::optional<Platform::FailureReason> err;
+         std::optional<Platform::FailureReason> err;
 
-          switch (static_cast<Layer>(layer)) {
-          case Layer::overlay:
-              err = platform->load_overlay_texture(filename);
-              break;
+         switch (static_cast<Layer>(layer)) {
+         case Layer::overlay:
+             err = platform->load_overlay_texture(filename);
+             break;
 
-          case Layer::map_1:
-              err = platform->load_tile1_texture(filename);
-              break;
+         case Layer::map_1:
+             err = platform->load_tile1_texture(filename);
+             break;
 
-          case Layer::map_0:
-              err = platform->load_tile0_texture(filename);
-              break;
+         case Layer::map_0:
+             err = platform->load_tile0_texture(filename);
+             break;
 
-          default:
-              if (layer == 4) {
-                  err = platform->load_sprite_texture(filename);
-              }
-              break;
-          }
+         default:
+             if (layer == 4) {
+                 err = platform->load_sprite_texture(filename);
+             }
+             break;
+         }
 
-          if (err) {
-              luaL_error(L, err->c_str());
-              return 1;
-          }
+         if (err) {
+             luaL_error(L, err->c_str());
+             return 1;
+         }
 
-          return 0;
-      }},
-     {"spr",
-      [](lua_State* L) -> int {
-          Sprite spr;
-          spr.set_texture_index(lua_tointeger(L, 1));
-          spr.set_position({
-                  Float(lua_tonumber(L, 2)),
-                  Float(lua_tonumber(L, 3))
-              });
+         return 0;
+     }},
+    {"spr",
+     [](lua_State* L) -> int {
+         Sprite spr;
+         spr.set_texture_index(lua_tointeger(L, 1));
+         spr.set_position(
+             {Float(lua_tonumber(L, 2)), Float(lua_tonumber(L, 3))});
 
-          const int argc = lua_gettop(L);
-          if (argc > 3) {
-              const bool xflip = lua_toboolean(L, 4);
-              if (argc > 4) {
-                  bool yflip = lua_toboolean(L, 5);
-                  spr.set_flip({xflip, yflip});
-              }
-              spr.set_flip({xflip, false});
-          }
+         const int argc = lua_gettop(L);
+         if (argc > 3) {
+             const bool xflip = lua_toboolean(L, 4);
+             if (argc > 4) {
+                 bool yflip = lua_toboolean(L, 5);
+                 spr.set_flip({xflip, yflip});
+             }
+             spr.set_flip({xflip, false});
+         }
 
-          platform->screen().draw(spr);
+         platform->screen().draw(spr);
 
-          return 0;
-      }},
-     {"priority",
-      [](lua_State* L) {
-          const int s = lua_tointeger(L, 1);
-          const int b = lua_tointeger(L, 2);
-          const int t0 = lua_tointeger(L, 3);
-          const int t1 = lua_tointeger(L, 4);
+         return 0;
+     }},
+    {"priority",
+     [](lua_State* L) {
+         const int s = lua_tointeger(L, 1);
+         const int b = lua_tointeger(L, 2);
+         const int t0 = lua_tointeger(L, 3);
+         const int t1 = lua_tointeger(L, 4);
 
-          platform->set_priorities(s, b, t0, t1);
+         platform->set_priorities(s, b, t0, t1);
 
-          return 0;
-      }},
-     {"scroll",
-      [](lua_State* L) -> int {
-          const int l = lua_tointeger(L, 1);
-          const int x = lua_tointeger(L, 2);
-          const int y = lua_tointeger(L, 3);
+         return 0;
+     }},
+    {"scroll",
+     [](lua_State* L) -> int {
+         const int l = lua_tointeger(L, 1);
+         const int x = lua_tointeger(L, 2);
+         const int y = lua_tointeger(L, 3);
 
-          platform->scroll(static_cast<Layer>(l), x, y);
+         platform->scroll(static_cast<Layer>(l), x, y);
 
-          return 0;
-      }},
-     {"camera",
-      [](lua_State* L) -> int {
-          const int x = lua_tonumber(L, 1);
-          const int y = lua_tonumber(L, 2);
+         return 0;
+     }},
+    {"camera",
+     [](lua_State* L) -> int {
+         const int x = lua_tonumber(L, 1);
+         const int y = lua_tonumber(L, 2);
 
-          auto view = platform->screen().get_view();
-          const auto& screen_size = platform->screen().size();
+         auto view = platform->screen().get_view();
+         const auto& screen_size = platform->screen().size();
 
-          view.set_center({Float(x - int(screen_size.x / 2)),
-                           Float(y - int(screen_size.y / 2))});
+         view.set_center({Float(x - int(screen_size.x / 2)),
+                          Float(y - int(screen_size.y / 2))});
 
-          platform->screen().set_view(view);
+         platform->screen().set_view(view);
 
-          return 0;
-      }},
-     {"tile",
-      [](lua_State* L) -> int {
-          const int argc = lua_gettop(L);
-          const int l = lua_tointeger(L, 1);
-          const int x = lua_tointeger(L, 2);
-          const int y = lua_tointeger(L, 3);
+         return 0;
+     }},
+    {"tile",
+     [](lua_State* L) -> int {
+         const int argc = lua_gettop(L);
+         const int l = lua_tointeger(L, 1);
+         const int x = lua_tointeger(L, 2);
+         const int y = lua_tointeger(L, 3);
 
-          if (argc == 4) {
-              const int t = lua_tointeger(L, 4);
+         if (argc == 4) {
+             const int t = lua_tointeger(L, 4);
+             set_tile((Layer)l, x, y, t);
+             return 0;
+         } else {
+             switch (static_cast<Layer>(l)) {
+             case Layer::overlay: {
+                 auto t = platform->get_tile(static_cast<Layer>(l), x, y);
+                 if (t <= 82) {
+                     // The engine does not allow users to capture the tile
+                     // index of a glyph.
+                     t = 0;
+                 } else {
+                     t -= 83;
+                 }
+                 lua_pushinteger(L, t);
+                 return 1;
+             }
 
-              switch (static_cast<Layer>(l)) {
-              case Layer::overlay:
-                  // NOTE: The first 82 tiles in the overlay graphics layer are
-                  // reserved for glyphs. We adjust the user-supplied indices
-                  // accordingly.
-                  platform->set_tile(static_cast<Layer>(l), x, y, t + 83);
-                  break;
+             case Layer::map_1:
+             case Layer::map_0:
+             case Layer::background:
+                 lua_pushinteger(
+                     L, platform->get_tile(static_cast<Layer>(l), x, y));
+                 return 1;
+             }
+         }
+         return 0;
+     }},
+    {"tilemap",
+     [](lua_State* L) -> int {
+         const int argc = lua_gettop(L);
+         if (argc < 4) {
+             // TODO: raise error?
+             return 0;
+         }
+         const char* filename = lua_tostring(L, 1);
+         const int layer = lua_tointeger(L, 2);
+         const int width = lua_tointeger(L, 3);
+         const int height = lua_tointeger(L, 4);
 
-              case Layer::map_1:
-              case Layer::map_0:
-              case Layer::background:
-                  platform->set_tile(static_cast<Layer>(l), x, y, t);
-                  break;
-              }
-              return 0;
-          } else {
-              switch (static_cast<Layer>(l)) {
-              case Layer::overlay: {
-                  auto t = platform->get_tile(static_cast<Layer>(l), x, y);
-                  if (t <= 82) {
-                      // The engine does not allow users to capture the tile
-                      // index of a glyph.
-                      t = 0;
-                  } else {
-                      t -= 83;
-                  }
-                  lua_pushinteger(L, t);
-                  return 1;
-              }
+         int dest_x = 0;
+         if (argc > 4) {
+             dest_x = lua_tointeger(L, 5);
+         }
 
-              case Layer::map_1:
-              case Layer::map_0:
-              case Layer::background:
-                  lua_pushinteger(L, platform->get_tile(static_cast<Layer>(l), x, y));
-                  return 1;
-              }
-          }
-          return 0;
-      }},
-     {"fill",
-      [](lua_State* L) -> int {
-          const int l = lua_tointeger(L, 1);
-          const int t = lua_tointeger(L, 2);
-          switch (static_cast<Layer>(l)) {
-          case Layer::overlay:
-              platform->fill_overlay(t);
-              break;
+         int dest_y = 0;
+         if (argc > 5) {
+             dest_y = lua_tointeger(L, 6);
+         }
 
-          // TODO: implement fill for other layers...
-          default:
-              break;
-          }
-          return 0;
-      }},
-     {"poke",
-      [](lua_State* L) -> int {
-          const auto addr = lua_tointeger(L, 1);
-          if (addr >= (intptr_t)__ram and addr < (intptr_t)__ram + __ram_size) {
-              const u8 val = lua_tointeger(L, 2);
-              *((u8*)addr) = val;
-              return 0;
-          } else if (addr >= 0x0E000000 and
-                     // Realistically, unless you use a flashcart, you will not
-                     // have more than 32kb of sram to work with.
-                     addr < (0x0E000000 + 32000)) {
-              const u8 val = lua_tointeger(L, 2);
-              *((u8*)addr) = val;
-              return 0;
-          } else {
-              luaL_error(L, "out of bounds address passed to poke");
-              return 1;
-          }
-      }},
-     {"poke4",
-      [](lua_State* L) -> int {
-          auto addr = lua_tointeger(L, 1);
-          if (addr >= (intptr_t)__ram and addr + 4 < ((intptr_t)__ram + __ram_size)) {
-              const u32 val = lua_tointeger(L, 2);
-              ((host_u32*)addr)->set(val);
-              return 0;
-          }  else if (addr >= 0x0E000000 and
-                     addr < (0x0E000000 + 32000)) {
-              host_u32 output;
-              output.set(lua_tointeger(L, 2));
-              // SRAM has a single-byte bus.
-              *((u8*)addr++) = ((u8*)&output)[0];
-              *((u8*)addr++) = ((u8*)&output)[1];
-              *((u8*)addr++) = ((u8*)&output)[2];
-              *((u8*)addr++) = ((u8*)&output)[3];
-              return 0;
-          } else {
-              luaL_error(L, "out of bounds address passed to poke4");
-              return 1;
-          }
+         int src_x = 0;
+         if (argc > 6) {
+             src_x = lua_tointeger(L, 7);
+         }
 
-      }},
-     {"peek",
-      [](lua_State* L) -> int {
-          const auto addr = lua_tointeger(L, 1);
-          lua_pushinteger(L, *((u8*)addr));
-          return 1;
-      }},
-     {"peek4",
-      [](lua_State* L) -> int {
-          auto addr = lua_tointeger(L, 1);
+         int src_y = 0;
+         if (argc > 7) {
+             src_y = lua_tointeger(L, 8);
+         }
 
-          if (UNLIKELY(addr >= 0x0E000000 and
-                       addr + 4 < (0x0E000000 + 32000))) {
-              host_u32 input;
-              // SRAM has a single-byte bus.
-              ((u8*)&input)[0] = *((u8*)addr++);
-              ((u8*)&input)[1] = *((u8*)addr++);
-              ((u8*)&input)[2] = *((u8*)addr++);
-              ((u8*)&input)[3] = *((u8*)addr++);
-              lua_pushinteger(L, input.get());
-          } else {
-              lua_pushinteger(L, ((host_u32*)addr)->get());
-          }
+         if (width < 0 or height < 0 or src_x < 0 or src_y < 0 or dest_x < 0 or
+             dest_y < 0) {
+             luaL_error(L, "negative parameter passed to tilemap()");
+             return 1;
+         }
 
-          return 1;
-      }},
-     {"memput",
-      [](lua_State* L) -> int {
-          size_t len;
-          auto src = lua_tolstring(L, 2, &len);
-          auto dest_addr = lua_tointeger(L, 1);
+         if (filename == nullptr) {
+             luaL_error(L, "null filename passed to tilemap()");
+             return 1;
+         }
 
-          if (len == 0) {
-              return 0;
-          }
+         auto f = platform->fs().get_file(filename);
+         if (f.data_ == nullptr) {
+             StringBuffer<60> str = "tilemap src file not found: ";
+             str += filename;
+             luaL_error(L, str.c_str());
+             return 1;
+         }
 
-          if (dest_addr >= (intptr_t)__ram and
-              (int)(dest_addr + len) < (intptr_t)__ram + __ram_size) {
+         if (auto err = fill_tilemap(
+                 f, layer, width, height, dest_x, dest_y, src_x, src_y)) {
+             luaL_error(L, err);
+             return 1;
+         }
 
-              memcpy((void*)dest_addr, src, len);
-              return 0;
+         return 0;
+     }},
+    {"fill",
+     [](lua_State* L) -> int {
+         const int l = lua_tointeger(L, 1);
+         const int t = lua_tointeger(L, 2);
+         switch (static_cast<Layer>(l)) {
+         case Layer::overlay:
+             platform->fill_overlay(t);
+             break;
 
-          } else if (dest_addr >= 0x0E000000 and
-                     dest_addr < (0x0E000000 + 32000)) {
-              // SRAM write
-              for (u32 i = 0; i < len; ++i) {
-                  *((u8*)dest_addr++) = src[i];
-              }
-              return 0;
-          } else {
-              luaL_error(L, "out of bounds address passed to memwrite");
-              return 1;
-          }
+         // TODO: implement fill for other layers...
+         default:
+             break;
+         }
+         return 0;
+     }},
+    {"poke",
+     [](lua_State* L) -> int {
+         const auto addr = lua_tointeger(L, 1);
+         if (addr >= (intptr_t)__ram and addr < (intptr_t)__ram + __ram_size) {
+             const u8 val = lua_tointeger(L, 2);
+             *((u8*)addr) = val;
+             return 0;
+         } else if (addr >= 0x0E000000 and
+                    // Realistically, unless you use a flashcart, you will not
+                    // have more than 32kb of sram to work with.
+                    addr < (0x0E000000 + 32000)) {
+             const u8 val = lua_tointeger(L, 2);
+             *((u8*)addr) = val;
+             return 0;
+         } else {
+             luaL_error(L, "out of bounds address passed to poke");
+             return 1;
+         }
+     }},
+    {"poke4",
+     [](lua_State* L) -> int {
+         auto addr = lua_tointeger(L, 1);
+         if (addr >= (intptr_t)__ram and
+             addr + 4 < ((intptr_t)__ram + __ram_size)) {
+             const u32 val = lua_tointeger(L, 2);
+             ((host_u32*)addr)->set(val);
+             return 0;
+         } else if (addr >= 0x0E000000 and addr < (0x0E000000 + 32000)) {
+             host_u32 output;
+             output.set(lua_tointeger(L, 2));
+             // SRAM has a single-byte bus.
+             *((u8*)addr++) = ((u8*)&output)[0];
+             *((u8*)addr++) = ((u8*)&output)[1];
+             *((u8*)addr++) = ((u8*)&output)[2];
+             *((u8*)addr++) = ((u8*)&output)[3];
+             return 0;
+         } else {
+             luaL_error(L, "out of bounds address passed to poke4");
+             return 1;
+         }
+     }},
+    {"peek",
+     [](lua_State* L) -> int {
+         const auto addr = lua_tointeger(L, 1);
+         lua_pushinteger(L, *((u8*)addr));
+         return 1;
+     }},
+    {"peek4",
+     [](lua_State* L) -> int {
+         auto addr = lua_tointeger(L, 1);
 
-          return 0;
-      }},
-     {"memget",
-      [](lua_State* L) -> int {
-          auto src = lua_tointeger(L, 1);
-          const auto count = lua_tointeger(L, 2);
+         if (UNLIKELY(addr >= 0x0E000000 and addr + 4 < (0x0E000000 + 32000))) {
+             host_u32 input;
+             // SRAM has a single-byte bus.
+             ((u8*)&input)[0] = *((u8*)addr++);
+             ((u8*)&input)[1] = *((u8*)addr++);
+             ((u8*)&input)[2] = *((u8*)addr++);
+             ((u8*)&input)[3] = *((u8*)addr++);
+             lua_pushinteger(L, input.get());
+         } else {
+             lua_pushinteger(L, ((host_u32*)addr)->get());
+         }
 
-          if (src >= 0x0E000000 and
-              src < (0x0E000000 + 32000)) {
+         return 1;
+     }},
+    {"memput",
+     [](lua_State* L) -> int {
+         size_t len;
+         auto src = lua_tolstring(L, 2, &len);
+         auto dest_addr = lua_tointeger(L, 1);
 
-              // SRAM read. We cannot trust lua_pushlstring to load the memory
-              // correctly, because lua doesn't know that the SRAM port has an
-              // 8-bit bus. Copy the data manually, byte-by-byte.
+         if (len == 0) {
+             return 0;
+         }
 
-              u8 local_buffer[255];
+         if (dest_addr >= (intptr_t)__ram and
+             (int)(dest_addr + len) < (intptr_t)__ram + __ram_size) {
 
-              u8* dest = local_buffer;
+             memcpy((void*)dest_addr, src, len);
+             return 0;
 
-              if ((sizeof local_buffer) < (u32)count) {
-                  dest = (u8*)umm_malloc(count);
-              }
+         } else if (dest_addr >= 0x0E000000 and
+                    dest_addr < (0x0E000000 + 32000)) {
+             // SRAM write
+             for (u32 i = 0; i < len; ++i) {
+                 *((u8*)dest_addr++) = src[i];
+             }
+             return 0;
+         } else {
+             luaL_error(L, "out of bounds address passed to memwrite");
+             return 1;
+         }
 
-              if (dest == nullptr) {
-                  luaL_error(L, "not enough memory for memget");
-                  return 1;
-              }
+         return 0;
+     }},
+    {"memget",
+     [](lua_State* L) -> int {
+         auto src = lua_tointeger(L, 1);
+         const auto count = lua_tointeger(L, 2);
 
-              for (int i = 0; i < count; ++i) {
-                  dest[i] = *((u8*)src++);
-              }
+         if (src >= 0x0E000000 and src < (0x0E000000 + 32000)) {
 
-              lua_pushlstring(L, (const char*)dest, count);
+             // SRAM read. We cannot trust lua_pushlstring to load the memory
+             // correctly, because lua doesn't know that the SRAM port has an
+             // 8-bit bus. Copy the data manually, byte-by-byte.
 
-              if (dest not_eq local_buffer) {
-                  umm_free(dest);
-              }
+             u8 local_buffer[255];
 
-              return 1;
-          } else {
-              lua_pushlstring(L,
-                              (const char*)src,
-                              count);
-              return 1;
-          }
-      }},
-     {"music",
-      [](lua_State* L) -> int {
-          const auto name = lua_tostring(L, 1);
-          const auto offset = lua_tointeger(L, 2);
-          platform->speaker().play_music(name, offset);
-          return 0;
-      }},
-     {"stop_music",
-      [](lua_State* L) -> int {
-          platform->speaker().stop_music();
-          return 0;
-      }},
-     {"sound",
-      [](lua_State* L) -> int {
-          const auto name = lua_tostring(L, 1);
-          const auto priority = lua_tointeger(L, 2);
-          platform->speaker().play_sound(name, priority);
-          return 0;
-      }},
-     {"sleep",
-      [](lua_State* L) -> int {
-          platform->sleep(lua_tointeger(L, 1));
-          return 0;
-      }},
-     {"file",
-      [](lua_State* L) -> int {
-          const auto name = lua_tostring(L, 1);
-          auto f = platform->fs().get_file(name);
-          if (f.data_) {
-              lua_pushinteger(L, (size_t)f.data_);
-              lua_pushinteger(L, (u32)f.size_);
-              return 2;
-          } else {
-              lua_pushnil(L);
-              lua_pushinteger(L, 0);
-              return 2;
-          }
-      }},
-     {"fade",
-      [](lua_State* L) -> int {
-          const auto amount = lua_tonumber(L, 1);
-          const int argc = lua_gettop(L);
+             u8* dest = local_buffer;
 
-          switch (argc) {
-          case 1:
-              platform->screen().fade(amount);
-              break;
+             if ((sizeof local_buffer) < (u32)count) {
+                 dest = (u8*)umm_malloc(count);
+             }
 
-          case 2:
-              platform->screen().fade(amount,
-                                      custom_color(lua_tonumber(L, 2)));
-              break;
+             if (dest == nullptr) {
+                 luaL_error(L, "not enough memory for memget");
+                 return 1;
+             }
 
-          case 3:
-              platform->screen().fade(amount,
-                                      custom_color(lua_tonumber(L, 2)),
-                                      {},
-                                      lua_toboolean(L, 3));
-              break;
+             for (int i = 0; i < count; ++i) {
+                 dest[i] = *((u8*)src++);
+             }
 
-          case 4:
-              platform->screen().fade(amount,
-                                      custom_color(lua_tonumber(L, 2)),
-                                      {},
-                                      lua_toboolean(L, 3),
-                                      lua_toboolean(L, 4));
-              break;
-          }
-          return 0;
-      }},
-     {"fdog",
-      [](lua_State* L) -> int {
-          platform->feed_watchdog();
-          return 0;
-      }},
-     {"next_script",
-      [](lua_State* L) -> int {
-          ::next_script = lua_tostring(L, 1);
-          return 0;
-      }},
-     {"startup_time",
-      [](lua_State* L) -> int {
-          if (auto tm = platform->startup_time()) {
-              lua_createtable(L, 0, 6);
+             lua_pushlstring(L, (const char*)dest, count);
 
-              lua_pushstring(L, "year");
-              lua_pushinteger(L, tm->date_.year_);
-              lua_settable(L, -3);
+             if (dest not_eq local_buffer) {
+                 umm_free(dest);
+             }
 
-              lua_pushstring(L, "month");
-              lua_pushinteger(L, tm->date_.month_);
-              lua_settable(L, -3);
+             return 1;
+         } else {
+             lua_pushlstring(L, (const char*)src, count);
+             return 1;
+         }
+     }},
+    {"music",
+     [](lua_State* L) -> int {
+         const int argc = lua_gettop(L);
+         if (argc == 0) {
+             // One library user accidentally determined that calling music()
+             // with no arguments results in stopping the music, which works
+             // because a nil string pointer passed to speaker().play_music()
+             // implicitly stops the current music track, because the system
+             // fails to find a music track with a name that compares to Lua
+             // nil. Now, we need to make sure that this behavior remains in
+             // the engine, because users have come to depend on it. Which is
+             // why we really should have been validating parameters from day
+             // 1. But checking parameters does slow things down a bit, so we
+             // instead assume that users read the documentation and passed
+             // stuff correctly. Generally, all parameters are either strings
+             // or integers anyway.
+             platform->speaker().stop_music();
+             return 0;
+         }
+         const auto name = lua_tostring(L, 1);
+         const auto offset = lua_tointeger(L, 2);
+         platform->speaker().play_music(name, offset);
+         return 0;
+     }},
+    {"stop_music",
+     [](lua_State* L) -> int {
+         platform->speaker().stop_music();
+         return 0;
+     }},
+    {"sound",
+     [](lua_State* L) -> int {
+         const auto name = lua_tostring(L, 1);
+         const auto priority = lua_tointeger(L, 2);
+         platform->speaker().play_sound(name, priority);
+         return 0;
+     }},
+    {"sleep",
+     [](lua_State* L) -> int {
+         platform->sleep(lua_tointeger(L, 1));
+         return 0;
+     }},
+    {"file",
+     [](lua_State* L) -> int {
+         const auto name = lua_tostring(L, 1);
+         auto f = platform->fs().get_file(name);
+         if (f.data_) {
+             lua_pushinteger(L, (size_t)f.data_);
+             lua_pushinteger(L, (u32)f.size_);
+             return 2;
+         } else {
+             lua_pushnil(L);
+             lua_pushinteger(L, 0);
+             return 2;
+         }
+     }},
+    {"fade",
+     [](lua_State* L) -> int {
+         const auto amount = lua_tonumber(L, 1);
+         const int argc = lua_gettop(L);
 
-              lua_pushstring(L, "day");
-              lua_pushinteger(L, tm->date_.day_);
-              lua_settable(L, -3);
+         switch (argc) {
+         case 1:
+             platform->screen().fade(amount);
+             break;
 
-              lua_pushstring(L, "hour");
-              lua_pushinteger(L, tm->hour_);
-              lua_settable(L, -3);
+         case 2:
+             platform->screen().fade(amount, custom_color(lua_tonumber(L, 2)));
+             break;
 
-              lua_pushstring(L, "minute");
-              lua_pushinteger(L, tm->minute_);
-              lua_settable(L, -3);
+         case 3:
+             platform->screen().fade(amount,
+                                     custom_color(lua_tonumber(L, 2)),
+                                     {},
+                                     lua_toboolean(L, 3));
+             break;
 
-              lua_pushstring(L, "second");
-              lua_pushinteger(L, tm->second_);
-              lua_settable(L, -3);
+         case 4:
+             platform->screen().fade(amount,
+                                     custom_color(lua_tonumber(L, 2)),
+                                     {},
+                                     lua_toboolean(L, 3),
+                                     lua_toboolean(L, 4));
+             break;
+         }
+         return 0;
+     }},
+    {"fdog",
+     [](lua_State* L) -> int {
+         platform->feed_watchdog();
+         return 0;
+     }},
+    {"next_script",
+     [](lua_State* L) -> int {
+         ::next_script = lua_tostring(L, 1);
+         return 0;
+     }},
+    {"startup_time", [](lua_State* L) -> int {
+         if (auto tm = platform->startup_time()) {
+             lua_createtable(L, 0, 6);
 
-              return 1;
+             lua_pushstring(L, "year");
+             lua_pushinteger(L, tm->date_.year_);
+             lua_settable(L, -3);
 
-          } else {
-              lua_pushnil(L);
-              return 1;
-          }
-      }}
-};
+             lua_pushstring(L, "month");
+             lua_pushinteger(L, tm->date_.month_);
+             lua_settable(L, -3);
+
+             lua_pushstring(L, "day");
+             lua_pushinteger(L, tm->date_.day_);
+             lua_settable(L, -3);
+
+             lua_pushstring(L, "hour");
+             lua_pushinteger(L, tm->hour_);
+             lua_settable(L, -3);
+
+             lua_pushstring(L, "minute");
+             lua_pushinteger(L, tm->minute_);
+             lua_settable(L, -3);
+
+             lua_pushstring(L, "second");
+             lua_pushinteger(L, tm->second_);
+             lua_settable(L, -3);
+
+             return 1;
+
+         } else {
+             lua_pushnil(L);
+             return 1;
+         }
+     }}};
 
 
-static void fatal_error(const char* heading,
-                        const char* error)
+static void fatal_error(const char* heading, const char* error)
 {
     platform->load_overlay_texture("overlay_text_key");
 

@@ -2,7 +2,6 @@
 #include "platform/platform.hpp"
 
 
-
 class str_const {
 private:
     const char* const p_;
@@ -72,26 +71,31 @@ template <u32 B, bool C> constexpr void my_assert()
     }()
 
 
-
-
 std::optional<u16> char_lookup_slow(const utf8::Codepoint& cp)
 {
     // The very slow path. I do not intend to support uppercase characters with
     // diacritic marks. But they should probably display as _something_
     switch (cp) {
-    case UTF8_GETCHR(u8"À"): return 39;
-    case UTF8_GETCHR(u8"Â"): return 39;
-    case UTF8_GETCHR(u8"Ã"): return 39;
-    case UTF8_GETCHR(u8"Ä"): return 39;
-    case UTF8_GETCHR(u8"Å"): return 39;
-    case UTF8_GETCHR(u8"É"): return 43;
-    case UTF8_GETCHR(u8"Ê"): return 43;
-    case UTF8_GETCHR(u8"È"): return 43;
+    case UTF8_GETCHR(u8"À"):
+        return 39;
+    case UTF8_GETCHR(u8"Â"):
+        return 39;
+    case UTF8_GETCHR(u8"Ã"):
+        return 39;
+    case UTF8_GETCHR(u8"Ä"):
+        return 39;
+    case UTF8_GETCHR(u8"Å"):
+        return 39;
+    case UTF8_GETCHR(u8"É"):
+        return 43;
+    case UTF8_GETCHR(u8"Ê"):
+        return 43;
+    case UTF8_GETCHR(u8"È"):
+        return 43;
     }
 
     return std::nullopt;
 }
-
 
 
 // Each language should define a texture mapping, which tells the rendering code

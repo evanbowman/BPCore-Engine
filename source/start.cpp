@@ -1,5 +1,5 @@
-#include "platform/platform.hpp"
 #include "BPCoreEngine.hpp"
+#include "platform/platform.hpp"
 
 
 void start(Platform& pf)

@@ -11,7 +11,6 @@
 
 class SpeedrunClock {
 public:
-
     int whole_seconds() const
     {
         return whole_seconds_;
@@ -20,7 +19,7 @@ public:
     void update(Microseconds delta)
     {
         fractional_time_ += delta;
-        
+
         if (fractional_time_ > seconds(1)) {
             whole_seconds_ -= 1;
             fractional_time_ -= seconds(1);
@@ -32,7 +31,7 @@ public:
         whole_seconds_ = 60 * 3;
         fractional_time_ = 0;
     }
-    
+
 private:
     u32 whole_seconds_ = 60 * 3;
     Microseconds fractional_time_ = 0;
