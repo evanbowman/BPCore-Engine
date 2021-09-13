@@ -2986,12 +2986,36 @@ static bool multiplayer_validate()
 // needs ignore messages that are all zeroes. Accomplished easily enough by
 // prefixing the sent message with an enum, where the zeroth enumeration is
 // unused.
-static const int message_iters =
-    Platform::NetworkPeer::max_message_size / sizeof(u16);
+static const int max_message_iters = 12 / sizeof(u16);
+
+
+static int message_iters = max_message_iters;
+
+
+void Platform::NetworkPeer::set_packet_size(u32 size)
+{
+    // NOTE: plus 1 b/c we need to round up. SIO multi mode sends u16 vals, so
+    // if we want to set a packet size of seven bytes, for instance, message
+    // iters cannot be three, it must be four ((7 + 1) / 2 = 4).
+    if ((size + 1) / 2 > max_message_iters) {
+        message_iters = max_message_iters;
+        return;
+    }
+    if (size < 1) {
+        message_iters = 1;
+    }
+    message_iters = (size + 1) / 2;
+}
+
+
+u32 Platform::NetworkPeer::packet_size()
+{
+    return message_iters * 2;
+}
 
 
 struct WireMessage {
-    u16 data_[message_iters] = {};
+    u16 data_[max_message_iters] = {};
 };
 
 
@@ -3172,7 +3196,7 @@ static bool multiplayer_busy()
 
 bool Platform::NetworkPeer::send_message(const Message& message)
 {
-    if (message.length_ > sizeof(TxInfo::data_)) {
+    if (message.length_ > packet_size()) {
         ::platform->fatal();
     }
 
@@ -3343,7 +3367,7 @@ Platform::NetworkPeer::poll_message()
         mc.poller_current_message = msg;
         return Platform::NetworkPeer::Message{
             reinterpret_cast<byte*>(msg->data_),
-            static_cast<int>(sizeof(WireMessage::data_))};
+                (u32)static_cast<int>(message_iters * 2)};
     }
     return {};
 }
@@ -3405,16 +3429,15 @@ MASTER_RETRY:
 
     const char* handshake = "link__v00002";
 
-    if (str_len(handshake) not_eq Platform::NetworkPeer::max_message_size) {
+    if (str_len(handshake) < ::platform->network_peer().packet_size()) {
         ::platform->network_peer().disconnect();
-        error(*::platform, "handshake string does not equal message size");
+        error(*::platform, "handshake string smaller than packet size");
         return;
     }
 
     multiplayer_connected = true;
 
-    ::platform->network_peer().send_message(
-        {(byte*)handshake, sizeof handshake});
+    ::platform->network_peer().send_message({(byte*)handshake, (u32)message_iters * 2});
 
     multiplayer_schedule_tx();
 
@@ -3427,7 +3450,7 @@ MASTER_RETRY:
             ::platform->network_peer().disconnect();
             return;
         } else if (auto msg = ::platform->network_peer().poll_message()) {
-            for (u32 i = 0; i < sizeof handshake; ++i) {
+            for (u32 i = 0; i < (u32)message_iters * 2; ++i) {
                 if (((u8*)msg->data_)[i] not_eq handshake[i]) {
                     if (multiplayer_is_master()) {
                         // For the master, if none of the other GBAs are in
@@ -3498,7 +3521,7 @@ Platform::NetworkPeer::Stats Platform::NetworkPeer::stats()
 {
     auto& mc = multiplayer_comms;
 
-    const int empty_transmits = mc.null_bytes_written / max_message_size;
+    const int empty_transmits = mc.null_bytes_written / packet_size();
     mc.null_bytes_written = 0;
 
     Float link_saturation = 0.f;

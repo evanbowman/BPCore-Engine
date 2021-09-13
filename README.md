@@ -205,6 +205,8 @@ Close the multiplayer session. During the diconnect process, the engine will sen
 
 ### Advanced Serial I/O
 
+Direct memory I/O functions:
+
 Admittedly, upacking/unpacking binary data from Lua strings can have a performance impact in tight loops. As of version 21.9.13.1, the engine includes two extra send/recv functions, `send_iram()` and `recv_iram()`, allowing you to read plain bytes out of the packets with `peek()` and `poke()`:
 
 * `send_iram(iram_address)`:
@@ -215,6 +217,9 @@ If a packet exists in the receive queue, map that 12 byte packet into IRAM, star
 
 Example: advanced serial I/O usage, sends coordinates back and forth between devices:
 ``` lua
+while not btnp(0) do
+   -- wait on a button press, then connect
+end
 connect(10)
 
 local x = 0
@@ -224,25 +229,35 @@ local oy = 0
 
 while true do
 
-   if connected then
-      poke4(_IRAM, x)
-      poke4(_IRAM + 4, y)
-      send_iram(_IRAM)
+   poke4(_IRAM, x)
+   poke4(_IRAM + 4, y)
+   send_iram(_IRAM)
 
-      local got_msg = recv_iram(_IRAM)
-      while got_msg do
-         sender = peek(_IRAM) -- message originator
-         ox = peek4(_IRAM + 1) -- x, y from other device
-         oy = peek4(_IRAM + 5)
-         got_msg = recv_iram(_IRAM)
-      end
-
+   local got_msg = recv_iram(_IRAM)
+   while got_msg do
+      sender = peek(_IRAM) -- message originator
+      ox = peek4(_IRAM + 1) -- x, y from other device
+      oy = peek4(_IRAM + 5)
+      got_msg = recv_iram(_IRAM)
    end
 
    clear()
    display()
 end
 ```
+
+Port configuration:
+
+* `port(configuration_table)`:
+Configure specific details about the link port. The engine uses eleven-bytes as the default packet size, but you may specify any packet size between 1 and 15 bytes. Generally, the engine will send out smaller packets more quickly than larger packets, because a smaller packet requires fewer transfers to send, while a larger packet is more efficient overall, as you can associate more data with a single packet header. The configured packet size must match the value used in the other connected gba(s).
+
+```lua
+port({
+   protocol = "packet",
+   packet_size = 5
+})
+```
+NOTE: The port command may support other configuration options in the future, as well as other protocols. If you want your app to work with future versions of the engine, do not pass any data in the port configuration table other than the fields described above.
 
 
 ### System

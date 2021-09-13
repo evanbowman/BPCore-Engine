@@ -50,14 +50,16 @@ static void disconnect()
         // Give pending packets a chance to be written out.
         platform->sleep(10);
 
-        char message[Platform::NetworkPeer::max_message_size] = {
+        char message[12] = {
             '_', 'd', 'i', 's', 'c', 'o', 'n', 'n', 'e', 'c', 't', '!'};
 
         pkt_set_origin(message);
 
         Platform::NetworkPeer::Message packet;
         packet.data_ = reinterpret_cast<const byte*>(message);
-        packet.length_ = Platform::NetworkPeer::max_message_size;
+        packet.length_ =
+            std::min(sizeof(message),
+                     (size_t)platform->network_peer().packet_size());
 
         int tries = 5000; // arbitrary number
         while (not platform->network_peer().send_message(packet)) {
@@ -168,7 +170,7 @@ static const struct {
     {"send_iram",
      [](lua_State* L) -> int {
 
-         static const auto msg_size = Platform::NetworkPeer::max_message_size;
+         const auto msg_size = platform->network_peer().packet_size();
 
          const auto addr = lua_tointeger(L, 1);
 
@@ -178,14 +180,19 @@ static const struct {
              return 1;
          }
 
-         char message[msg_size];
+         char message[24];
          pkt_set_origin(message);
+
+         if (sizeof message < (size_t)msg_size) {
+             luaL_error(L, "system error in port config");
+             return 1;
+         }
 
          __builtin_memcpy(message + 1, (u8*)addr, msg_size - 1);
 
          Platform::NetworkPeer::Message packet;
          packet.data_ = (const byte*)message;
-         packet.length_ = sizeof message;
+         packet.length_ = platform->network_peer().packet_size();
 
          while (not platform->network_peer().send_message(packet)) {
              if (not platform->network_peer().is_connected()) {
@@ -199,15 +206,23 @@ static const struct {
      }},
     {"send",
      [](lua_State* L) -> int {
-         char message[Platform::NetworkPeer::max_message_size];
-         __builtin_memset(message + 1, 0, (sizeof message) - 1);
+         char message[24];
+
+         if (platform->network_peer().packet_size() > sizeof message) {
+             luaL_error(L, "system error in port config");
+             return 1;
+         }
+
+         __builtin_memset(message + 1,
+                          0,
+                          platform->network_peer().packet_size() - 1);
          pkt_set_origin(message);
 
 
          const char* str = lua_tostring(L, 1);
          const auto len = str_len(str);
 
-         if (len > (sizeof message) - 1) {
+         if (len > platform->network_peer().packet_size() - 1) {
              lua_pushboolean(L, false);
              return 1;
          }
@@ -216,7 +231,7 @@ static const struct {
 
          Platform::NetworkPeer::Message packet;
          packet.data_ = (const byte*)message;
-         packet.length_ = sizeof message;
+         packet.length_ = platform->network_peer().packet_size();
 
          while (not platform->network_peer().send_message(packet)) {
              if (not platform->network_peer().is_connected()) {
@@ -231,7 +246,7 @@ static const struct {
     {"recv_iram",
      [](lua_State* L) -> int {
 
-         static const auto msg_size = Platform::NetworkPeer::max_message_size;
+         const auto msg_size = platform->network_peer().packet_size();
 
          const auto addr = lua_tointeger(L, 1);
 
@@ -248,7 +263,7 @@ static const struct {
 
              platform->
                  network_peer()
-                 .poll_consume(Platform::NetworkPeer::max_message_size);
+                 .poll_consume(platform->network_peer().packet_size());
              lua_pushboolean(L, true);
              return 1;
          }
@@ -259,10 +274,10 @@ static const struct {
      [](lua_State* L) -> int {
          if (auto message = platform->network_peer().poll_message()) {
              lua_pushlstring(L, (const char*)message->data_,
-                             Platform::NetworkPeer::max_message_size);
+                             platform->network_peer().packet_size());
              platform->
                  network_peer()
-                 .poll_consume(Platform::NetworkPeer::max_message_size);
+                 .poll_consume(platform->network_peer().packet_size());
              return 1;
          }
          lua_pushnil(L);
