@@ -52,15 +52,20 @@ public:
 
         StringBuffer<20> buffer;
 
-        while (data_[pos_] not_eq ',') {
+        while (data_[pos_] not_eq ',' and
+               data_[pos_] not_eq '\n' and
+               data_[pos_] not_eq '\r') {
             if (pos_ == len_) {
-                return false;
+                break;
             }
             buffer.push_back(data_[pos_++]);
         }
 
-        ++pos_;
+        if (data_[pos_] == ',') {
+            ++pos_;
+        }
         ++x_;
+
 
         if (output) {
             *output = std::atoi(buffer.c_str());
