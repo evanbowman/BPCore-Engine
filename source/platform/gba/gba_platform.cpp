@@ -11,13 +11,13 @@
 
 #include "bulkAllocator.hpp"
 #include "graphics/overlay.hpp"
+#include "images.cpp"
 #include "number/random.hpp"
 #include "platform/platform.hpp"
 #include "string.hpp"
+#include "umm_malloc/src/umm_malloc.h"
 #include "util.hpp"
 #include <algorithm>
-#include "umm_malloc/src/umm_malloc.h"
-#include "images.cpp"
 
 
 void english__to_string(int num, char* buffer, int base);
@@ -125,9 +125,8 @@ static Platform* platform;
 
 [[gnu::used]] alignas(4) static EWRAM_DATA u8 heap[240000];
 
-void *UMM_MALLOC_CFG_HEAP_ADDR = &heap;
+void* UMM_MALLOC_CFG_HEAP_ADDR = &heap;
 uint32_t UMM_MALLOC_CFG_HEAP_SIZE = sizeof heap;
-
 
 
 int main(int argc, char** argv)
@@ -433,7 +432,6 @@ void Platform::Screen::init_layers(int background_prior,
 }
 
 
-
 Platform::Screen::Screen() : userdata_(nullptr)
 {
     REG_DISPCNT = MODE_0 | OBJ_ENABLE | OBJ_MAP_1D | BG0_ENABLE | BG1_ENABLE |
@@ -650,7 +648,7 @@ void Platform::Screen::draw(const Sprite& spr)
 
         auto abs_position = position - view_center;
         if (abs_position.x < -16 or abs_position.x > 256 or
-            abs_position.y < -16 or abs_position.y > 176 ) {
+            abs_position.y < -16 or abs_position.y > 176) {
             return;
         }
 
@@ -841,7 +839,7 @@ void Platform::Screen::display()
 
     if (UNLIKELY(enter_sleep)) {
         enter_sleep = false;
-        if (not::platform->network_peer().is_connected()) {
+        if (not ::platform->network_peer().is_connected()) {
             ::platform->sleep(180);
             Stop();
         }
@@ -1260,9 +1258,8 @@ push_spritesheet_texture(const TextureData& info)
 
     // NOTE: There are four tile blocks, so index four points to the
     // end of the tile memory.
-    memcpy16((void*)&MEM_TILE[4][1],
-             info.tile_data_,
-             info.tile_data_length_ / 2);
+    memcpy16(
+        (void*)&MEM_TILE[4][1], info.tile_data_, info.tile_data_length_ / 2);
 
     // We need to do this, otherwise whatever screen fade is currently
     // active will be overwritten by the copy.
@@ -1376,9 +1373,7 @@ Platform::load_tile0_texture(const char* name)
 
     if (img.data_ and palette.data_) {
 
-        memcpy(tile0_source_pal,
-               palette.data_,
-               sizeof tile0_source_pal);
+        memcpy(tile0_source_pal, palette.data_, sizeof tile0_source_pal);
 
         TextureData& info = tile0_file_data;
         info.name_ = name;
@@ -1465,9 +1460,7 @@ Platform::load_tile1_texture(const char* name)
 
     if (img.data_ and palette.data_) {
 
-        memcpy(tile1_source_pal,
-               palette.data_,
-               sizeof tile1_source_pal);
+        memcpy(tile1_source_pal, palette.data_, sizeof tile1_source_pal);
 
         TextureData& info = tile1_file_data;
         info.name_ = name;
@@ -1976,7 +1969,7 @@ void Platform::Speaker::play_sound(const char* name,
 
     auto sound_file = platform->fs().get_file(name);
     if (sound_file.data_) {
-        ActiveSoundInfo info {0, static_cast<s32>(sound_file.size_), 0, 0};
+        ActiveSoundInfo info{0, static_cast<s32>(sound_file.size_), 0, 0};
         info.priority_ = priority;
         info.data_ = reinterpret_cast<const s8*>(sound_file.data_);
         push_sound(info);
@@ -2497,7 +2490,7 @@ push_overlay_texture(const TextureData& info)
 
             if (not exceeded_bytes) {
                 memcpy16((char*)&MEM_SCREENBLOCKS[sbb_overlay_texture][0] +
-                         prefix.tile_data_length_,
+                             prefix.tile_data_length_,
                          info.tile_data_,
                          info.tile_data_length_ / 2);
 
@@ -2532,9 +2525,7 @@ Platform::load_overlay_texture(const char* name)
 
     if (img.data_ and palette.data_) {
 
-        memcpy(overlay_source_pal,
-               palette.data_,
-               sizeof overlay_source_pal);
+        memcpy(overlay_source_pal, palette.data_, sizeof overlay_source_pal);
 
         TextureData& info = overlay_file_data;
         info.name_ = name;
@@ -2684,13 +2675,11 @@ TileDesc Platform::map_glyph(const utf8::Codepoint& glyph,
                     u8 buffer[tile_size] = {0};
 
 
-                    auto k_src = info.tile_data_ +
-                        (adjusted_offset * tile_size) /
-                        sizeof(decltype(info.tile_data_));
+                    auto k_src =
+                        info.tile_data_ + (adjusted_offset * tile_size) /
+                                              sizeof(decltype(info.tile_data_));
 
-                    memcpy16(buffer,
-                             k_src,
-                             tile_size / 2);
+                    memcpy16(buffer, k_src, tile_size / 2);
 
                     for (int i = 0; i < tile_size; ++i) {
                         auto c = buffer[i];
@@ -2906,11 +2895,14 @@ void Platform::set_tile(Layer layer, u16 x, u16 y, u16 val)
         if (x < 32 and y < 32) {
             MEM_SCREENBLOCKS[sbb_t1_tiles][x + y * 32] = val | SE_PALBANK(2);
         } else if (y < 32) {
-            MEM_SCREENBLOCKS[sbb_t1_tiles + 1][(x - 32) + y * 32] = val | SE_PALBANK(2);
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 1][(x - 32) + y * 32] =
+                val | SE_PALBANK(2);
         } else if (x < 32) {
-            MEM_SCREENBLOCKS[sbb_t1_tiles + 2][x + (y - 32) * 32] = val | SE_PALBANK(2);
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 2][x + (y - 32) * 32] =
+                val | SE_PALBANK(2);
         } else {
-            MEM_SCREENBLOCKS[sbb_t1_tiles + 3][(x - 32) + (y - 32) * 32] = val | SE_PALBANK(2);
+            MEM_SCREENBLOCKS[sbb_t1_tiles + 3][(x - 32) + (y - 32) * 32] =
+                val | SE_PALBANK(2);
         }
         break;
 

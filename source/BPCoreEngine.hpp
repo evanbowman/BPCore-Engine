@@ -1,8 +1,8 @@
 #pragma once
 
 
-#include "platform/platform.hpp"
 #include "filesystem.hpp"
+#include "platform/platform.hpp"
 
 extern "C" {
 #include "lua/lua.h"
