@@ -152,7 +152,9 @@ static const struct {
      }},
     {"connect",
      [](lua_State* L) -> int {
-         disconnect();
+         if (platform->network_peer().is_connected()) {
+             platform->network_peer().disconnect();
+         }
          platform->network_peer().connect(nullptr,
                                           seconds(lua_tointeger(L, 1)));
          lua_pushboolean(L, platform->network_peer().is_connected());
