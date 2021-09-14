@@ -405,3 +405,10 @@ The overlay tile layer shares graphics memory with the system font. If you load 
 
 `fade()` does not apply to colored text, i.e. if you passed custom color hex values to the print() function. Supporting this would be practically unrealistic given the cpu frequency on a gameboy advance (we cannot realistically linearly interpolate between 256 arbitrary colors within a reasonable amount of time). Regular text, using the default overlay palette, can be faded. 
 
+# Future Work
+
+The BlindJump source code has tons of other features that I'd like to eventually add to the Lua API. In the future, I plan to add:
+* Gameboy Player Rumble
+* Loading data from the Tiled map editor
+* UART
+* Hitboxes and builtin collision checking
