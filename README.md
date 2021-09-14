@@ -205,7 +205,7 @@ Close the multiplayer session. During the diconnect process, the engine will sen
 
 ### Advanced Serial I/O
 
-Admittedly, upacking/unpacking binary data from Lua strings can have a performance impact in tight loops. As of version 21.9.13.1, the engine includes two extra send/recv functions, `send_iram()` and `recv_iram()`, allowing you to read plain bytes out of the packets with `peek()` and `poke()`:
+Admittedly, packing/unpacking binary data from Lua strings can have a performance impact in tight loops. As of version 21.9.13.1, the engine includes two extra send/recv functions, `send_iram()` and `recv_iram()`, allowing you to read plain bytes out of the packets with `peek()` and `poke()`:
 
 * `send_iram(iram_address)`:
 Send raw 11 byte packet starting at address iram_address. Return true upon success, false upon falure.
