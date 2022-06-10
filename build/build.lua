@@ -259,7 +259,12 @@ end
 -- data before loading it into VRAM would significantly slow down texture
 -- loading.
 function convert_tileset(path)
-   local img = bitmap.from_file(path)
+   local img, err = bitmap.from_file(path)
+
+   if img == nil then
+      error("for file: " .. path .. ", error: " .. err)
+   end
+
    local w = img.width
    local h = img.height
 
