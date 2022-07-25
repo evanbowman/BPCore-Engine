@@ -27,6 +27,44 @@ static void* umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 }
 
 
+
+struct Entity
+{
+    Float x_;
+    Float y_;
+    u16 z_;
+    u16 sprite_id_;
+    u8 hitbox_size_x_;
+    u8 hitbox_size_y_;
+    s8 hitbox_origin_x_;
+    s8 hitbox_origin_y_;
+};
+using EntityPtr = std::unique_ptr<Entity, void (*)(Entity*)>;
+
+
+
+static constexpr int entity_count = 128;
+
+
+
+ObjectPool<Entity, entity_count> entity_pool;
+
+
+
+Buffer<EntityPtr, entity_count> entity_buffer;
+
+
+
+static void entity_deleter(Entity* entity)
+{
+    if (entity) {
+        entity->~Entity();
+        entity_pool.post(entity);
+    }
+}
+
+
+
 static const int __ram_size = 8000;
 
 
@@ -149,6 +187,45 @@ static const struct {
      [](lua_State* L) -> int {
          info(*platform, lua_tostring(L, 1));
          return 0;
+     }},
+    {"del",
+     [](lua_State* L) -> int {
+         auto arg = lua_topointer(L, 1);
+         for (auto it = entity_buffer.begin();
+              it not_eq entity_buffer.end();) {
+
+             if (it->get() == arg) {
+                 it = entity_buffer.erase(it);
+                 return 0;
+             } else {
+                 ++it;
+             }
+         }
+         return 0;
+     }},
+    {"ents",
+     [](lua_State* L) -> int {
+         lua_createtable(L, entity_buffer.size(), 0);
+
+         int i = 0;
+         for (auto& e : entity_buffer) {
+             lua_pushlightuserdata(L, e.get());
+             lua_rawseti(L, -2, i + 1);
+             ++i;
+         }
+
+         return 1;
+     }},
+    {"ent",
+     [](lua_State* L) -> int {
+         if (auto ent = entity_pool.get()) {
+             entity_buffer.push_back({ent, entity_deleter});
+             lua_pushlightuserdata(L, ent);
+             return 1;
+         } else {
+             luaL_error(L, "entity pool exhausted! (max 128)");
+             return 0;
+         }
      }},
     {"connect",
      [](lua_State* L) -> int {
