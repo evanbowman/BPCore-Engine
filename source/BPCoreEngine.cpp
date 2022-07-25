@@ -30,14 +30,20 @@ static void* umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 
 struct Entity
 {
-    Float x_;
-    Float y_;
-    u16 z_;
-    u16 sprite_id_;
-    u8 hitbox_size_x_;
-    u8 hitbox_size_y_;
-    s8 hitbox_origin_x_;
-    s8 hitbox_origin_y_;
+    Float x_ = 0.f;
+    Float y_ = 0.f;
+    u16 sprite_id_ = 0;
+    u16 tag_ = 0;
+    u8 hitbox_size_x_ = 16;
+    u8 hitbox_size_y_ = 16;
+    s8 hitbox_origin_x_ = 8;
+    s8 hitbox_origin_y_ = 8;
+    u8 z_ = 0;
+    u8 x_flip_ : 1;
+    u8 y_flip_ : 1;
+    u8 unused_ : 6;
+
+    Entity() : x_flip_(0), y_flip_(0) {}
 };
 using EntityPtr = std::unique_ptr<Entity, void (*)(Entity*)>;
 
@@ -227,6 +233,41 @@ static const struct {
              return 0;
          }
      }},
+    {"ent_spr",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         e->sprite_id_ = lua_tointeger(L, 2);
+
+         const int argc = lua_gettop(L);
+         if (argc > 3) {
+             const bool xflip = lua_toboolean(L, 3);
+             e->x_flip_ = xflip;
+             if (argc > 4) {
+                 const bool yflip = lua_toboolean(L, 4);
+                 e->y_flip_ = yflip;
+             }
+         }
+
+         lua_pushlightuserdata(L, e);
+         return 1;
+     }},
+    {"ent_pos",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         e->x_ = Float(lua_tonumber(L, 2));
+         e->y_ = Float(lua_tonumber(L, 3));
+
+         lua_pushlightuserdata(L, e);
+         return 1;
+     }},
+    {"ent_z",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         e->z_ = lua_tointeger(L, 1);
+
+         lua_pushlightuserdata(L, e);
+         return 1;
+     }},
     {"connect",
      [](lua_State* L) -> int {
          if (platform->network_peer().is_connected()) {
@@ -354,6 +395,23 @@ static const struct {
      }},
     {"display",
      [](lua_State* L) -> int {
+         Sprite spr;
+         for (u32 i = 0; i < entity_buffer.size(); ++i) {
+             auto& e = entity_buffer[i];
+             spr.set_texture_index(e->sprite_id_);
+             spr.set_position({e->x_, e->y_});
+             spr.set_flip({(bool)e->x_flip_, (bool)e->y_flip_});
+             platform->screen().draw(spr);
+
+             if (i > 1) {
+                 // My lazy sorting technique: just swap entities based on Z
+                 // value. The list maintains a sorted order most of the time.
+                 if (entity_buffer[i - 1]->z_ < entity_buffer[i]->z_) {
+                     std::swap(entity_buffer[i - 1]->z_, entity_buffer[i]->z_);
+                 }
+             }
+         }
+
          platform->screen().display();
          platform->keyboard().poll();
          return 0;

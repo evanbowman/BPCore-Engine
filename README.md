@@ -127,23 +127,28 @@ Entities share a lot in common with sprites, but with a few exceptions:
 1) Entities have hitboxes and support collision checking.
 2) The engine will automatically redraw entities for you.
 
+All entity setters generally return the input entity as a result, so you can write `entpos(entspr(entity, 5), 1, 1)`, by chaining calls together.
+
 * `ent()`
 Create an entity.
 
 * `del(entity)`
 Destroy an entity. The engine owns and manages all entities, the Lua garbage collector will not collect them. Call `del()` when you're done with an entity.
 
-* `ent_spr(entity, sprite_id, [xflip], [yflip])`
-Set an entity's sprite, with optional flipping flags. Similar to `spr()`, but for entities.
+* `entspr(entity, sprite_id, [xflip], [yflip])`
+Set an entity's sprite, with optional flipping flags. Similar to `spr()`, but for entities. Returns the input entity.
 
-* `ent_pos(entity, x, y)`
-Set an entity's position.
+* `entpos(entity, x, y)`
+Set an entity's position. Return the input entity.
 
-* `ent_hb(entity, x_origin, y_origin, width, height)`
-Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after adding x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :)
+* `entz(entity, z)`
+Assign an entity a Z value between 0 and 255, inclusive. The engine will sort entities by Z value when drawing them. Returns the input entity.
+
+* `enthb(entity, x_origin, y_origin, width, height)`
+Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after adding x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :) Returns the input entity. By default, an entity will use a 16x16 hitbox, where the hitbox anchor is at 8,8 (the center of the 16x16 hitbox), to match the engine's sprite size.
 
 * `ents()`
-Get a table of all entities registered with the engine. Normally, you should not need to call this function. Entities should be considered a resource belonging to the engine, and the Lua environment will not garbage collect unused entities. If you're switching scripts with next_script(), you may sometimes need to ask the engine for its list of entities.
+Get a table of all entities registered with the engine. Normally, you should not need to call this function. Entities should be considered a resource belonging to the engine, and the Lua environment will not garbage collect unused entities. If you're switching scripts with next_script(), you may sometimes need to ask the engine for its list of entities. Otherwise, you should do your best to keep track of entities.
 
 
 

@@ -12,6 +12,10 @@ print(_BP_VERSION, 3, 3)
 
 txtr(2, "tile0.bmp")
 
+player = ent()
+ent_spr(player, 0)
+
+
 
 for i = 15, 45 do
    for j = 15, 45 do
@@ -71,7 +75,7 @@ end
 
 
 function draw()
-   spr(0, x, y)
+   ent_pos(player, x, y)
    spr(255, 30, 30)
 end
 
