@@ -163,7 +163,7 @@ Checks collisions between two entities, returns true if a collision exists.
 
 * `ecolm(e1, layer, [solid_tile_ids])`
 (entity-collide-map)
-Checks collisions between an entity and a layer of the tilemap. Optionally pass an array of solid tile ids. If you don't pass an array in the third argument, the engine will treat nonzero tiles as empty and zeroed tiles as walls. Returns a table of tile index pairs as a result.
+Checks collisions between an entity and a layer of the tilemap. Optionally pass an array of solid tile ids. If you don't pass an array in the third argument, the engine will treat nonzero tiles as walls and zeroed tiles as empty. Returns a table of tile index pairs as a result.
 
 * `ecolt(e1, tag)`
 (entity-collide-tag)
