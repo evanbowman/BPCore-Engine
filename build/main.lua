@@ -13,7 +13,7 @@ print(_BP_VERSION, 3, 3)
 txtr(2, "tile0.bmp")
 
 player = ent()
-ent_spr(player, 0)
+entspr(player, 0)
 
 
 
@@ -75,7 +75,7 @@ end
 
 
 function draw()
-   ent_pos(player, x, y)
+   entpos(player, x, y)
    spr(255, 30, 30)
 end
 
