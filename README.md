@@ -145,7 +145,7 @@ Set an entity's position. Return the input entity.
 Assign an entity a Z value between 0 and 255, inclusive. The engine will sort entities by Z value when drawing them. Returns the input entity.
 
 * `entag(entity, [integer])`
-For tagging an entity with a numbered integer. If an integer argument is passed, the function will set the entity's tag and return the entity. If no extra arguments are passed, will return the entity's current tag.
+For tagging an entity with a numbered integer. If an integer argument is passed, the function will set the entity's tag and return the entity. If no extra arguments are passed, will return the entity's current tag. Tag should be within range [0, 65535].
 
 * `enthb(entity, x_origin, y_origin, width, height)`
 Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after adding x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :) Returns the input entity. By default, an entity will use a 16x16 hitbox, where the hitbox anchor is at 8,8 (the center of the 16x16 hitbox), to match the engine's sprite size.
@@ -161,13 +161,13 @@ The engine offers a few different collision functions for entities:
 (entity-collide-entity)
 Checks collisions between two entities, returns true if a collision exists.
 
-* `ecolm(e1, layer, [solid_tile_ids])`
-(entity-collide-map)
-Checks collisions between an entity and a layer of the tilemap. Optionally pass an array of solid tile ids. If you don't pass an array in the third argument, the engine will treat nonzero tiles as walls and zeroed tiles as empty. Returns a table of tile index pairs as a result.
-
 * `ecolt(e1, tag)`
 (entity-collide-tag)
-Returns an array of all entities tagged with tag that collide with with entity e1. See `entag()` for entity tagging.
+Returns an array of all entities tagged with tag that collide with with entity e1. See `entag()` for entity tagging. NOTE: will return at most 16 colliding entities.
+
+* `ecolm(e1, layer, [solid_tile_ids])`
+(entity-collide-tile-map)
+Unimplemented, planned for a future release!
 
 
 ### RAM Read/Write

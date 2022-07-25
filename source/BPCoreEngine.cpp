@@ -43,6 +43,27 @@ struct Entity
     u8 y_flip_ : 1;
     u8 unused_ : 6;
 
+    bool overlapping(Entity& other)
+    {
+        auto hb_center = [](Entity& e) {
+            Vec2<s16> c;
+            c.x = s16(e.x_) - e.hitbox_origin_x_;
+            c.y = s16(e.y_) - e.hitbox_origin_y_;
+            return c;
+        };
+
+        const auto c = hb_center(*this);
+        const auto oc = hb_center(other);
+        if (c.x < (oc.x + other.hitbox_size_x_) and
+            (c.x + hitbox_size_x_) > oc.x and
+            c.y < (oc.y + other.hitbox_size_y_) and
+            (c.y + hitbox_size_y_) > oc.y) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     Entity() : x_flip_(0), y_flip_(0) {}
 };
 using EntityPtr = std::unique_ptr<Entity, void (*)(Entity*)>;
@@ -278,6 +299,42 @@ static const struct {
          e->z_ = lua_tointeger(L, 1);
 
          lua_pushlightuserdata(L, e);
+         return 1;
+     }},
+    {"ecole",
+     [](lua_State* L) -> int {
+         auto e1 = (Entity*)lua_topointer(L, 1);
+         auto e2 = (Entity*)lua_topointer(L, 2);
+         lua_pushboolean(L, e1->overlapping(*e2));
+         return 1;
+     }},
+    {"ecolt",
+     [](lua_State* L) -> int {
+         auto e1 = (Entity*)lua_topointer(L, 1);
+         auto tag = lua_tointeger(L, 2);
+
+         Buffer<Entity*, 16> results;
+
+         for (auto& e : entity_buffer) {
+             if (e->tag_ == tag) {
+                 if (e1->overlapping(*e)) {
+                     results.push_back(e.get());
+                 }
+             }
+         }
+
+         if (results.empty()) {
+             lua_pushnil(L);
+         } else {
+             lua_createtable(L, results.size(), 0);
+             int i = 0;
+             for (auto& e : results) {
+                 lua_pushlightuserdata(L, e);
+                 lua_rawseti(L, -2, i + 1);
+                 ++i;
+             }
+         }
+
          return 1;
      }},
     {"connect",
