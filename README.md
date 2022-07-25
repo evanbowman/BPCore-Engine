@@ -120,6 +120,33 @@ Clear all sprites from the screen. Should be called once per frame. `clear()` al
 * `display()`
 Show any recent `spr()` and `tile()` calls.
 
+
+### Entities
+
+Entities share a lot in common with sprites, but with a few exceptions:
+1) Entities have hitboxes and support collision checking.
+2) The engine will automatically redraw entities for you.
+
+* `ent()`
+Create an entity.
+
+* `del(entity)`
+Destroy an entity. The engine owns and manages all entities, the Lua garbage collector will not collect them. Call `del()` when you're done with an entity.
+
+* `ent_spr(entity, sprite_id, [xflip], [yflip])`
+Set an entity's sprite, with optional flipping flags. Similar to `spr()`, but for entities.
+
+* `ent_pos(entity, x, y)`
+Set an entity's position.
+
+* `ent_hb(entity, x_origin, y_origin, width, height)`
+Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after adding x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :)
+
+* `ents()`
+Get a table of all entities registered with the engine. Normally, you should not need to call this function. Entities should be considered a resource belonging to the engine, and the Lua environment will not garbage collect unused entities. If you're switching scripts with next_script(), you may sometimes need to ask the engine for its list of entities.
+
+
+
 ### RAM Read/Write
 
 NOTE: Only _SRAM and _IRAM regions are writable (see [Memory](#memory) below).
