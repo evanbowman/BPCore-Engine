@@ -153,7 +153,21 @@ Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity
 * `ents()`
 Get a table of all entities registered with the engine. Normally, you should not need to call this function. Entities should be considered a resource belonging to the engine, and the Lua environment will not garbage collect unused entities. If you're switching scripts with next_script(), you may sometimes need to ask the engine for its list of entities. Otherwise, you should do your best to keep track of entities. This function allocates a table, and you should not rely on calling it every frame.
 
+#### Collisions
 
+The engine offers a few different collision functions for entities:
+
+* `ecole(e1, e2)`
+(entity-collide-entity)
+Checks collisions between two entities, returns true if a collision exists.
+
+* `ecolm(e1, layer, [solid_tile_ids])`
+(entity-collide-map)
+Checks collisions between an entity and a layer of the tilemap. Optionally pass an array of solid tile ids. If you don't pass an array in the third argument, the engine will treat nonzero tiles as empty and zeroed tiles as walls. Returns a table of tile index pairs as a result.
+
+* `ecolt(e1, tag)`
+(entity-collide-tag)
+Returns an array of all entities tagged with tag that collide with with entity e1. See `entag()` for entity tagging.
 
 
 ### RAM Read/Write
