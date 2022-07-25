@@ -233,7 +233,7 @@ static const struct {
              return 0;
          }
      }},
-    {"ent_spr",
+    {"entspr",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
          e->sprite_id_ = lua_tointeger(L, 2);
@@ -251,7 +251,7 @@ static const struct {
          lua_pushlightuserdata(L, e);
          return 1;
      }},
-    {"ent_pos",
+    {"entpos",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
          e->x_ = Float(lua_tonumber(L, 2));
@@ -260,7 +260,19 @@ static const struct {
          lua_pushlightuserdata(L, e);
          return 1;
      }},
-    {"ent_z",
+    {"entag",
+     [](lua_State* L) -> int {
+        const int argc = lua_gettop(L);
+        auto e = (Entity*)lua_topointer(L, 1);
+        if (argc == 1) {
+            lua_pushinteger(L, e->z_);
+        } else if (argc == 2) {
+            e->tag_ = lua_tointeger(L, 2);
+            lua_pushlightuserdata(L, e);
+        }
+        return 1;
+     }},
+    {"entz",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
          e->z_ = lua_tointeger(L, 1);
