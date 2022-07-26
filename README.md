@@ -165,9 +165,18 @@ Checks collisions between two entities, returns true if a collision exists.
 (entity-collide-tag)
 Returns an array of all entities tagged with tag that collide with with entity e1. See `entag()` for entity tagging. NOTE: will return at most 16 colliding entities.
 
-* `ecolm(e1, layer, [solid_tile_ids])`
+* `ecolm(e1, layer, output_address)`
 (entity-collide-tile-map)
-Unimplemented, planned for a future release!
+Check collisions between entity and a tile layer. Because this function may be called by some users frequently may return a large number of results, it writes its results to the output_address, which should be _IRAM + offset. The function returns the number of output results, which may then be read from IRAM with the peek function. Each coordinate will take up two bytes of IRAM, with the first byte holding the x tile coordinate, followed by the y coordinate, repeated for each overlapping tile. Alternatively, we could have designed this function to return a table of pairs. But then we'd need to allocate a table of tables, which puts pressure on the GC, resulting in noticeable pauses. `ecolt` returns a table, but collisions between entities are assumed to be much less frequent, and returning a single table isn't as bad as returning a large table of tables for pairs of collision coordinates.
+For example:
+```lua
+local result_count = ecolm(entity, 2, _IRAM)
+for i = 0, result_count, 2 do
+   tile_x = peek(_IRAM + i)
+   tile_y = peek(_IRAM + i + 1)
+   -- ...
+end
+```
 
 
 ### RAM Read/Write
