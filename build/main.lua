@@ -15,6 +15,12 @@ txtr(2, "tile0.bmp")
 player = ent()
 entspr(player, 0)
 
+enemy = ent()
+entpos(entspr(enemy, 255), 32, 32)
+entag(enemy, 3)
+
+entag(entpos(entspr(ent(), 255), 32, 48), 3)
+
 
 
 for i = 15, 45 do
@@ -71,12 +77,28 @@ function update(dt)
    end
 
    camera(x, y)
+   entpos(player, x, y)
+
+   local cols = ecolt(player, 3)
+   if cols then
+      local cnt = 0
+      for _, obj in ipairs(cols) do
+         cnt = cnt + 1
+      end
+      print("collisions:" .. cnt, 1, 14)
+   else
+      print("collisions:0", 1, 14)
+   end
+
+   cols = ecolm(player, 2, _IRAM)
+   if cols then
+      print("tc: " .. cols)
+   end
 end
 
 
 function draw()
-   entpos(player, x, y)
-   spr(255, 30, 30)
+   -- ...
 end
 
 

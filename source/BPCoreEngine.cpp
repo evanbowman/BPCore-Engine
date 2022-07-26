@@ -251,7 +251,7 @@ static const struct {
              return 1;
          } else {
              luaL_error(L, "entity pool exhausted! (max 128)");
-             return 0;
+             return 1;
          }
      }},
     {"entspr",
@@ -306,6 +306,44 @@ static const struct {
          auto e1 = (Entity*)lua_topointer(L, 1);
          auto e2 = (Entity*)lua_topointer(L, 2);
          lua_pushboolean(L, e1->overlapping(*e2));
+         return 1;
+     }},
+    {"ecolm",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         const auto layer = (Layer)lua_tonumber(L, 2);
+         auto addr = lua_tonumber(L, 3);
+
+         int ex = e->x_;
+         int ey = e->y_;
+         ex += e->hitbox_origin_x_;
+         ey += e->hitbox_origin_y_;
+
+         int start_tile_x = ex / 8;
+         int start_tile_y = ey / 8;
+         int end_tile_x = (ex + e->hitbox_size_x_) / 8;
+         int end_tile_y = (ey + e->hitbox_size_y_) / 8;
+
+         int count = 0;
+
+         // FIXME: wrapping!
+         for (int x = start_tile_x; x < end_tile_x; ++x) {
+             for (int y = start_tile_y; y < end_tile_y; ++y) {
+                 auto t = platform->get_tile(layer, x, y);
+                 if (t) {
+                     *((u8*)(intptr_t)addr++) = x;
+                     *((u8*)(intptr_t)addr++) = y;
+                     ++count;
+
+                     if (((intptr_t)__ram + __ram_size) < addr) {
+                         luaL_error(L, "ecolm address out of bounds");
+                         return 1;
+                     }
+                 }
+             }
+         }
+
+         lua_pushinteger(L, count);
          return 1;
      }},
     {"ecolt",
