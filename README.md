@@ -171,7 +171,7 @@ Check collisions between entity and a tile layer. Because this function may be c
 For example:
 ```lua
 local result_count = ecolm(entity, 2, _IRAM)
-for i = 0, result_count, 2 do
+for i = 0, result_count * 2, 2 do
    tile_x = peek(_IRAM + i)
    tile_y = peek(_IRAM + i + 1)
    -- ...
