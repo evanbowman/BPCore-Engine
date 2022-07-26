@@ -169,7 +169,7 @@ Returns an array of all entities tagged with tag that collide with with entity e
 (entity-collide-tile-map)
 Check collisions between entity and a tile layer. Because this function may be called by some users frequently may return a large number of results, it writes its results to the output_address, which should be _IRAM + offset. The function returns the number of output results, which may then be read from IRAM with the peek function. Each coordinate will take up two bytes of IRAM, with the first byte holding the x tile coordinate, followed by the y coordinate, repeated for each overlapping tile. Alternatively, we could have designed this function to return a table of pairs. But then we'd need to allocate a table of tables, which puts pressure on the GC, resulting in noticeable pauses. This whole api in general is designed to avoid allocations wherever possible, instead dealing mostly in pointers and integers. Now, you may be thinking: `ecolt` returns a table, why does entity-entity collision return a table, but this function write its results into a section of ram? But collisions between entities are assumed to be much less frequent than collisions between entities and tiles in most types of games, and returning a single table isn't as bad as returning a large table of tables for pairs of collision coordinates.
 
-TLDR: Avoiding allocations is more efficent, results in IRAM, here's an example:
+TLDR: Avoiding allocations is more efficent, results will be in IRAM, here's an example:
 ```lua
 local result_count = ecolm(entity, 2, _IRAM)
 for i = 0, result_count * 2, 2 do
