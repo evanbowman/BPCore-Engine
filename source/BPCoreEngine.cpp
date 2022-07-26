@@ -492,11 +492,11 @@ static const struct {
              spr.set_flip({(bool)e->x_flip_, (bool)e->y_flip_});
              platform->screen().draw(spr);
 
-             if (i > 1) {
+             if (i > 0) {
                  // My lazy sorting technique: just swap entities based on Z
                  // value. The list maintains a sorted order most of the time.
                  if (entity_buffer[i - 1]->z_ < entity_buffer[i]->z_) {
-                     std::swap(entity_buffer[i - 1]->z_, entity_buffer[i]->z_);
+                     std::swap(entity_buffer[i - 1], entity_buffer[i]);
                  }
              }
          }

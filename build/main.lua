@@ -16,6 +16,12 @@ player = ent()
 entspr(player, 0)
 
 
+enemy = ent()
+entspr(enemy, 255)
+entpos(enemy, 30, 30)
+entz(enemy, 20)
+
+
 
 for i = 15, 45 do
    for j = 15, 45 do
@@ -70,13 +76,19 @@ function update(dt)
       y = y + 2
    end
 
+   entpos(player, x, y)
+   entz(player, 30)
+
+   if ecole(player, enemy) then
+      print("collision", 10, 1)
+   end
+
+
    camera(x, y)
 end
 
 
 function draw()
-   entpos(player, x, y)
-   spr(255, 30, 30)
 end
 
 
