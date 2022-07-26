@@ -257,15 +257,22 @@ static const struct {
     {"entspr",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
-         e->sprite_id_ = lua_tointeger(L, 2);
 
          const int argc = lua_gettop(L);
-         if (argc > 3) {
-             const bool xflip = lua_toboolean(L, 3);
-             e->x_flip_ = xflip;
-             if (argc > 4) {
-                 const bool yflip = lua_toboolean(L, 4);
-                 e->y_flip_ = yflip;
+         if (argc == 1) {
+             lua_pushinteger(L, e->sprite_id_);
+             lua_pushboolean(L, e->x_flip_);
+             lua_pushboolean(L, e->y_flip_);
+             return 3;
+         } else {
+             e->sprite_id_ = lua_tointeger(L, 2);
+             if (argc > 3) {
+                 const bool xflip = lua_toboolean(L, 3);
+                 e->x_flip_ = xflip;
+                 if (argc > 4) {
+                     const bool yflip = lua_toboolean(L, 4);
+                     e->y_flip_ = yflip;
+                 }
              }
          }
 
@@ -275,11 +282,18 @@ static const struct {
     {"entpos",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
-         e->x_ = Float(lua_tonumber(L, 2));
-         e->y_ = Float(lua_tonumber(L, 3));
 
-         lua_pushlightuserdata(L, e);
-         return 1;
+         const int argc = lua_gettop(L);
+         if (argc == 3) {
+             e->x_ = Float(lua_tonumber(L, 2));
+             e->y_ = Float(lua_tonumber(L, 3));
+             lua_pushlightuserdata(L, e);
+             return 1;
+         } else {
+             lua_pushnumber(L, e->x_);
+             lua_pushnumber(L, e->y_);
+             return 2;
+         }
      }},
     {"entag",
      [](lua_State* L) -> int {
@@ -296,7 +310,13 @@ static const struct {
     {"entz",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
-         e->z_ = lua_tointeger(L, 1);
+         const int argc = lua_gettop(L);
+         if (argc == 1) {
+             lua_pushinteger(L, e->z_);
+             return 1;
+         } else {
+             e->z_ = lua_tointeger(L, 2);
+         }
 
          lua_pushlightuserdata(L, e);
          return 1;
