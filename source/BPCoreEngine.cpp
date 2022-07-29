@@ -30,6 +30,8 @@ static void* umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 
 struct Entity
 {
+    u32* var_slots_ = nullptr;
+
     Float x_ = 0.f;
     Float y_ = 0.f;
     u16 sprite_id_ = 0;
@@ -42,6 +44,9 @@ struct Entity
     u8 x_flip_ : 1;
     u8 y_flip_ : 1;
     u8 unused_ : 6;
+    u8 slot_count_ = 0;
+
+
 
     bool overlapping(Entity& other)
     {
@@ -85,6 +90,9 @@ Buffer<EntityPtr, entity_count> entity_buffer;
 static void entity_deleter(Entity* entity)
 {
     if (entity) {
+        if (entity->var_slots_) {
+            umm_free(entity->var_slots_);
+        }
         entity->~Entity();
         entity_pool.post(entity);
     }
@@ -251,8 +259,63 @@ static const struct {
              return 1;
          } else {
              luaL_error(L, "entity pool exhausted! (max 128)");
-             return 0;
+             return 1;
          }
+     }},
+    {"entslot",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         int slot = lua_tointeger(L, 2) - 1; // To match lua's 1-based tables.
+
+         if (not e->var_slots_) {
+             luaL_error(L, "Entity has no slots!");
+             return 1;
+         }
+
+         const int argc = lua_gettop(L);
+         if (argc == 2) {
+             if (slot > 0 and slot < e->slot_count_) {
+                 lua_pushinteger(L, e->var_slots_[slot]);
+                 return 1;
+             } else {
+                 luaL_error(L, "Out of bounds access to entity slot");
+                 return 1;
+             }
+         } else if (argc == 3) {
+
+             int value = lua_tointeger(L, 3);
+             if (slot > 0 and slot < e->slot_count_) {
+                 e->var_slots_[slot] = value;
+             } else {
+                 luaL_error(L, "Out of bounds access to entity slot");
+                 return 1;
+             }
+
+             lua_pushlightuserdata(L, e);
+             return 1;
+         }
+         luaL_error(L, "wrong number of args for entslot");
+         return 1;
+     }},
+    {"entslots",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         auto slot_count = lua_tointeger(L, 2);
+
+         if (slot_count > 255) {
+             luaL_error(L, "entity slot count exceeds 255!");
+             return 1;
+         }
+
+         if (e->var_slots_) {
+             umm_free(e->var_slots_);
+         }
+
+         e->var_slots_ = (u32*)umm_malloc(slot_count * sizeof(u32));
+         e->slot_count_ = slot_count;
+
+         lua_pushlightuserdata(L, e);
+         return 1;
      }},
     {"entspr",
      [](lua_State* L) -> int {
@@ -300,7 +363,7 @@ static const struct {
         const int argc = lua_gettop(L);
         auto e = (Entity*)lua_topointer(L, 1);
         if (argc == 1) {
-            lua_pushinteger(L, e->z_);
+            lua_pushinteger(L, e->tag_);
         } else if (argc == 2) {
             e->tag_ = lua_tointeger(L, 2);
             lua_pushlightuserdata(L, e);
