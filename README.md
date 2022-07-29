@@ -226,6 +226,15 @@ Load a string of count bytes starting from an address.
 * `file(name)`
 Returns a pointer,length to any file in the resource bundle. The data can then be read with the peek/peek4 functions. You cannot write to files, as they reside in ROM, and are therefore, by definition, read-only.
 
+### Math Utilities
+
+* `dirv(x1, y1, x2, y2)`
+Computes a unit vector representing the direction between x1,y1 and x2,y2. Returns two results represeting the x and y of the unit vector.
+
+* `rotv(x, y, r)`
+Rotate an x,y vector by r degrees.
+
+
 ``` lua
 ptr, len = file("main.lua")
 print(memget(ptr, 10), 1, 1) -- print the first 10 chars of this very script.
