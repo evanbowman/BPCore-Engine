@@ -32,8 +32,10 @@ struct Entity
 {
     float* var_slots_ = nullptr;
 
-    Float x_ = 0.f;
-    Float y_ = 0.f;
+    float x_speed_ = 0.f;
+    float y_speed_ = 0.f;
+    float x_ = 0.f;
+    float y_ = 0.f;
     u16 sprite_id_ = 0;
     u16 tag_ = 0;
     u8 hitbox_size_x_ = 16;
@@ -43,9 +45,9 @@ struct Entity
     u8 z_ = 0;
     u8 x_flip_ : 1;
     u8 y_flip_ : 1;
-    u8 unused_ : 6;
+    u8 has_speed_ : 1;
+    u8 unused_ : 5;
     u8 slot_count_ = 0;
-
 
 
     bool overlapping(Entity& other)
@@ -69,7 +71,7 @@ struct Entity
         }
     }
 
-    Entity() : x_flip_(0), y_flip_(0) {}
+    Entity() : x_flip_(0), y_flip_(0), has_speed_(0) {}
 };
 using EntityPtr = std::unique_ptr<Entity, void (*)(Entity*)>;
 
@@ -262,6 +264,23 @@ static const struct {
              return 1;
          }
      }},
+    {"entspd",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         auto xs = lua_tonumber(L, 2);
+         auto ys = lua_tonumber(L, 3);
+
+         e->has_speed_ = true;
+         e->x_speed_ = xs;
+         e->y_speed_ = ys;
+
+         lua_pushlightuserdata(L, e);
+         return 1;
+     }},
+    {"entanim",
+     [](lua_State* L) -> int {
+         return 0;
+     }},
     {"enthb",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
@@ -432,6 +451,22 @@ static const struct {
          lua_pushnumber(L, result.x);
          lua_pushnumber(L, result.y);
          return 2;
+     }},
+    {"ecolt1",
+     [](lua_State* L) -> int {
+         auto e1 = (Entity*)lua_topointer(L, 1);
+         auto tag = lua_tointeger(L, 2);
+
+         for (auto& e : entity_buffer) {
+             if (e->tag_ == tag) {
+                 if (e1->overlapping(*e)) {
+                     lua_pushlightuserdata(L, e.get());
+                     return 1;
+                 }
+             }
+         }
+         lua_pushnil(L);
+         return 1;
      }},
     {"ecolt",
      [](lua_State* L) -> int {
@@ -608,6 +643,14 @@ static const struct {
 
          platform->screen().display();
          platform->keyboard().poll();
+
+         for (auto& e : entity_buffer) {
+             if (e->has_speed_) {
+                 e->x_ += e->x_speed_;
+                 e->y_ += e->y_speed_;
+             }
+         }
+
          return 0;
      }},
     {"delta",
