@@ -171,12 +171,12 @@ Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity
 Allocates `count` slots for entity data members. You may store integer values in an entity's slot array.
 
 * `entslot(entity, slot, [value])`
-When called with two arguments, returns the value at `slot`. When called with an optional integer value, assigns `value` to the specified slot, and returns the input entity. NOTE: like lua tables, entity slots use 1-based indexing. The function will raise a fatal error for out-of-bounds access.
+When called with two arguments, returns the value at `slot`. When called with an optional number value, assigns `value` to the specified slot, and returns the input entity. NOTE: like lua tables, entity slots use 1-based indexing. The function will raise a fatal error for out-of-bounds access.
 ```lua
 e = ent()
 entslots(e, 5)
-entslot(e, 1, 22)
-entslot(e, 1) -- 22
+entslot(e, 1, 22.1)
+entslot(e, 1) -- 22.1
 entslot(e, 0) -- fatal error!
 entslot(e, 6) -- fatal error!
 ```

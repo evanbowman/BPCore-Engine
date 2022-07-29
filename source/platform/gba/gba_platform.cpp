@@ -805,10 +805,16 @@ static ScreenBlock overlay_back_buffer alignas(u32);
 static bool overlay_back_buffer_changed = false;
 
 
+u16 t1_scroll_x = 0;
+u16 t1_scroll_y = 0;
+u16 t0_scroll_x = 0;
+u16 t0_scroll_y = 0;
+u16 bg_scroll_x = 0;
+u16 bg_scroll_y = 0;
+
+
 void Platform::scroll(Layer layer, u16 xscroll, u16 yscroll)
 {
-    const auto view_offset = screen().get_view().get_center();
-
     switch (layer) {
     case Layer::overlay:
         *bg2_x_scroll = xscroll;
@@ -816,18 +822,18 @@ void Platform::scroll(Layer layer, u16 xscroll, u16 yscroll)
         break;
 
     case Layer::map_1:
-        *bg3_x_scroll = xscroll + view_offset.x;
-        *bg3_y_scroll = yscroll + view_offset.y;
+        t1_scroll_x = xscroll;
+        t1_scroll_y = yscroll;
         break;
 
     case Layer::map_0:
-        *bg0_x_scroll = xscroll + view_offset.x;
-        *bg0_y_scroll = yscroll + view_offset.y;
+        t0_scroll_x = xscroll;
+        t0_scroll_y = yscroll;
         break;
 
     case Layer::background:
-        *bg1_x_scroll = xscroll + view_offset.x;
-        *bg1_y_scroll = yscroll + view_offset.y;
+        bg_scroll_x = xscroll;
+        bg_scroll_y = yscroll;
         break;
     }
 }
@@ -892,14 +898,14 @@ void Platform::Screen::display()
     }
 
     auto view_offset = view_.get_center().cast<s32>();
-    *bg0_x_scroll = view_offset.x;
-    *bg0_y_scroll = view_offset.y;
+    *bg0_x_scroll = view_offset.x + t0_scroll_x;
+    *bg0_y_scroll = view_offset.y + t0_scroll_y;
 
-    *bg3_x_scroll = view_offset.x;
-    *bg3_y_scroll = view_offset.y;
+    *bg3_x_scroll = view_offset.x + t1_scroll_x;
+    *bg3_y_scroll = view_offset.y + t1_scroll_y;
 
-    *bg1_x_scroll = view_offset.x;
-    *bg1_y_scroll = view_offset.y;
+    *bg1_x_scroll = view_offset.x + bg_scroll_x;
+    *bg1_y_scroll = view_offset.y + bg_scroll_y;
 
     // // Depending on the amount of the background scroll, we want to mask off
     // // certain parts of bg0 and bg3. The background tiles wrap when they scroll

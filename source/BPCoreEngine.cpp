@@ -30,7 +30,7 @@ static void* umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 
 struct Entity
 {
-    u32* var_slots_ = nullptr;
+    float* var_slots_ = nullptr;
 
     Float x_ = 0.f;
     Float y_ = 0.f;
@@ -262,6 +262,21 @@ static const struct {
              return 1;
          }
      }},
+    {"enthb",
+     [](lua_State* L) -> int {
+         auto e = (Entity*)lua_topointer(L, 1);
+         auto ox = lua_tointeger(L, 2);
+         auto oy = lua_tointeger(L, 3);
+         auto w = lua_tointeger(L, 4);
+         auto h = lua_tointeger(L, 5);
+         e->hitbox_size_x_ = w;
+         e->hitbox_size_y_ = h;
+         e->hitbox_origin_x_ = ox;
+         e->hitbox_origin_y_ = oy;
+
+         lua_pushlightuserdata(L, e);
+         return 1;
+     }},
     {"entslot",
      [](lua_State* L) -> int {
          auto e = (Entity*)lua_topointer(L, 1);
@@ -274,7 +289,7 @@ static const struct {
 
          const int argc = lua_gettop(L);
          if (argc == 2) {
-             if (slot > 0 and slot < e->slot_count_) {
+             if (slot >= 0 and slot < e->slot_count_) {
                  lua_pushinteger(L, e->var_slots_[slot]);
                  return 1;
              } else {
@@ -283,8 +298,8 @@ static const struct {
              }
          } else if (argc == 3) {
 
-             int value = lua_tointeger(L, 3);
-             if (slot > 0 and slot < e->slot_count_) {
+             auto value = lua_tonumber(L, 3);
+             if (slot >= 0 and slot < e->slot_count_) {
                  e->var_slots_[slot] = value;
              } else {
                  luaL_error(L, "Out of bounds access to entity slot");
@@ -311,7 +326,7 @@ static const struct {
              umm_free(e->var_slots_);
          }
 
-         e->var_slots_ = (u32*)umm_malloc(slot_count * sizeof(u32));
+         e->var_slots_ = (float*)umm_malloc(slot_count * sizeof(float));
          e->slot_count_ = slot_count;
 
          lua_pushlightuserdata(L, e);
@@ -390,6 +405,33 @@ static const struct {
          auto e2 = (Entity*)lua_topointer(L, 2);
          lua_pushboolean(L, e1->overlapping(*e2));
          return 1;
+     }},
+    {"rline",
+     [](lua_State* L) -> int {
+         lua_pushinteger(L, *(u16*)0x04000006);
+         return 1;
+     }},
+    {"dirv",
+     [](lua_State* L) -> int {
+         auto x1 = lua_tonumber(L, 1);
+         auto y1 = lua_tonumber(L, 2);
+         auto x2 = lua_tonumber(L, 3);
+         auto y2 = lua_tonumber(L, 4);
+
+         auto uv = direction({x1, y1}, {x2, y2});
+         lua_pushnumber(L, uv.x);
+         lua_pushnumber(L, uv.y);
+         return 2;
+     }},
+    {"rotv",
+     [](lua_State* L) -> int {
+         auto x1 = lua_tonumber(L, 1);
+         auto y1 = lua_tonumber(L, 2);
+         auto rot = lua_tonumber(L, 3);
+         auto result = rotate({x1, y1}, rot);
+         lua_pushnumber(L, result.x);
+         lua_pushnumber(L, result.y);
+         return 2;
      }},
     {"ecolt",
      [](lua_State* L) -> int {
@@ -696,9 +738,9 @@ static const struct {
      }},
     {"scroll",
      [](lua_State* L) -> int {
-         const int l = lua_tointeger(L, 1);
-         const int x = lua_tointeger(L, 2);
-         const int y = lua_tointeger(L, 3);
+         const int l = lua_tonumber(L, 1);
+         const int x = lua_tonumber(L, 2);
+         const int y = lua_tonumber(L, 3);
 
          platform->scroll(static_cast<Layer>(l), x, y);
 
