@@ -167,6 +167,20 @@ local t = entag(entity)  -- retrieve entity tag
 * `enthb(entity, x_origin, y_origin, width, height)`
 Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after adding x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :) Returns the input entity. By default, an entity will use a 16x16 hitbox, where the hitbox anchor is at 8,8 (the center of the 16x16 hitbox), to match the engine's sprite size.
 
+* `entslots(entity, count)`
+Allocates `count` slots for entity data members. You may store integer values in an entity's slot array.
+
+* `entslot(entity, slot, [value])`
+When called with two arguments, returns the value at `slot`. When called with an optional integer value, assigns `value` to the specified slot, and returns the input entity. NOTE: like lua tables, entity slots use 1-based indexing. The function will raise a fatal error for out-of-bounds access.
+```lua
+e = ent()
+entslots(e, 5)
+entslot(e, 1, 22)
+entslot(e, 1) -- 22
+entslot(e, 0) -- fatal error!
+entslot(e, 6) -- fatal error!
+```
+
 * `ents()`
 Get a table of all entities registered with the engine. Normally, you should not need to call this function. Entities should be considered a resource belonging to the engine, and the Lua environment will not garbage collect unused entities. If you're switching scripts with next_script(), you may sometimes need to ask the engine for its list of entities. Otherwise, you should do your best to keep track of entities. This function allocates a table, and you should not rely on calling it every frame.
 
