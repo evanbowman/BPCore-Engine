@@ -290,7 +290,7 @@ static const struct {
          const int argc = lua_gettop(L);
          if (argc == 2) {
              if (slot >= 0 and slot < e->slot_count_) {
-                 lua_pushinteger(L, e->var_slots_[slot]);
+                 lua_pushnumber(L, e->var_slots_[slot]);
                  return 1;
              } else {
                  luaL_error(L, "Out of bounds access to entity slot");
