@@ -46,8 +46,14 @@ struct Entity
     u8 x_flip_ : 1;
     u8 y_flip_ : 1;
     u8 has_speed_ : 1;
-    u8 unused_ : 5;
+    u8 has_anim_ : 1;
+    u8 anim_counter_ : 4;
     u8 slot_count_ = 0;
+    u8 anim_start_ = 0;
+    u8 anim_len_ : 4;
+    u8 anim_rate_ : 4;
+    u8 del_after_anim_ : 1;
+    u8 flags_ : 7;
 
 
     bool overlapping(Entity& other)
@@ -71,7 +77,15 @@ struct Entity
         }
     }
 
-    Entity() : x_flip_(0), y_flip_(0), has_speed_(0) {}
+    Entity() : x_flip_(0),
+               y_flip_(0),
+               has_speed_(0),
+               has_anim_(0),
+               anim_counter_(0),
+               anim_start_(0),
+               anim_len_(0),
+               anim_rate_(0),
+               del_after_anim_(0) {}
 };
 using EntityPtr = std::unique_ptr<Entity, void (*)(Entity*)>;
 
@@ -227,15 +241,24 @@ static const struct {
      }},
     {"del",
      [](lua_State* L) -> int {
-         auto arg = lua_topointer(L, 1);
-         for (auto it = entity_buffer.begin();
-              it not_eq entity_buffer.end();) {
+         auto e = (Entity*)lua_topointer(L, 1);
 
-             if (it->get() == arg) {
-                 it = entity_buffer.erase(it);
-                 return 0;
-             } else {
-                 ++it;
+         const int argc = lua_gettop(L);
+         if (argc == 2) {
+             auto param = lua_tointeger(L, 2);
+             if (param == 1) {
+                 e->del_after_anim_ = true;
+             }
+         } else {
+             for (auto it = entity_buffer.begin();
+                  it not_eq entity_buffer.end();) {
+
+                 if (it->get() == e) {
+                     it = entity_buffer.erase(it);
+                     return 0;
+                 } else {
+                     ++it;
+                 }
              }
          }
          return 0;
@@ -279,7 +302,13 @@ static const struct {
      }},
     {"entanim",
      [](lua_State* L) -> int {
-         return 0;
+         auto e = (Entity*)lua_topointer(L, 1);
+         e->has_anim_ = true;
+         e->anim_start_ = lua_tointeger(L, 2);
+         e->anim_len_ = clamp((int)lua_tointeger(L, 3), 1, 15);
+         e->anim_rate_ = clamp((int)lua_tointeger(L, 4), 1, 15);
+         lua_pushlightuserdata(L, e);
+         return 1;
      }},
     {"enthb",
      [](lua_State* L) -> int {
@@ -644,11 +673,30 @@ static const struct {
          platform->screen().display();
          platform->keyboard().poll();
 
-         for (auto& e : entity_buffer) {
+         for (auto it = entity_buffer.begin();
+              it not_eq entity_buffer.end();) {
+
+             auto& e = *it;
              if (e->has_speed_) {
                  e->x_ += e->x_speed_;
                  e->y_ += e->y_speed_;
              }
+             if (e->has_anim_) {
+                 if (e->anim_counter_++ == e->anim_rate_) {
+                     e->anim_counter_ = 0;
+                     if (e->sprite_id_ >= e->anim_start_ + e->anim_len_ - 1) {
+                         if (e->del_after_anim_) {
+                             it = entity_buffer.erase(it);
+                             continue;
+                         } else {
+                             e->sprite_id_ = e->anim_start_;
+                         }
+                     } else {
+                         e->sprite_id_++;
+                     }
+                 }
+             }
+             ++it;
          }
 
          return 0;

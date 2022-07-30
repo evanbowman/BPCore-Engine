@@ -120,6 +120,19 @@ Clear all sprites from the screen. Should be called once per frame. `clear()` al
 * `display()`
 Show any recent `spr()` and `tile()` calls.
 
+* `rline()`
+Returns the current raster line number. The GBA screen has 160 lines. You can use this function to implement a framerate limit, or for code profiling purposes. If the raster line advances past 160, you've spent too long updating data durnig the current frame and the game will lag. If you want to target 30fps, to give yourself more time for game updates:
+```lua
+-- game logic ...
+
+if rline() > 160 then
+    clear() -- framerate limit to max 30fps, by inserting another vsync.
+end
+clear() -- the regular clear()/display() calls
+display()
+
+```
+
 
 ### Entities
 
@@ -132,8 +145,8 @@ All entity setters generally return the input entity as a result, so you can wri
 * `ent()`
 Create an entity. Max 128 allowed at a time.
 
-* `del(entity)`
-Destroy an entity. The engine owns and manages all entities, the Lua garbage collector will not collect them. Call `del()` when you're done with an entity.
+* `del(entity, [parameter])`
+Destroy an entity. The engine owns and manages all entities, the Lua garbage collector will not collect them. Call `del()` when you're done with an entity. If you pass an extra parameter: the following options are supported: parameter==0: no effect, the entity is not deleted, parameter==1: delete the entity when it finishes its animation.
 
 * `entspr(entity, [sprite_id], [xflip], [yflip])`
 Set an entity's sprite, with optional flipping flags. Similar to `spr()`, but for entities. Returns the input entity. When called without any of the last three arguments, returns an entity's sprite info:
@@ -183,6 +196,10 @@ entslot(e, 6) -- fatal error!
 
 * `ents()`
 Get a table of all entities registered with the engine. Normally, you should not need to call this function. Entities should be considered a resource belonging to the engine, and the Lua environment will not garbage collect unused entities. If you're switching scripts with next_script(), you may sometimes need to ask the engine for its list of entities. Otherwise, you should do your best to keep track of entities. This function allocates a table, and you should not rely on calling it every frame.
+
+* `entanim(entity, start_keyframe, length, rate)`
+Animate an entity. The engine will cycle through keyframes, until reaching start_keyframe + length. The engine will advance one keyframe for every `rate` display() calls. As it's very common to create animated effects and then delete them when finished, the `del()` function allows you to delete an entity in the future, when it finishes its animation.
+
 
 #### Collisions
 
