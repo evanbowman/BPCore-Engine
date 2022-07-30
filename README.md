@@ -183,6 +183,9 @@ Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity
 * `entslots(entity, count)`
 Allocates `count` slots for entity data members. You may store integer values in an entity's slot array.
 
+* `entspd(entity, xspeed, yspeed)`
+The engine will update your entity by xspeed, yspeed each frame.
+
 * `entslot(entity, slot, [value])`
 When called with two arguments, returns the value at `slot`. When called with an optional number value, assigns `value` to the specified slot, and returns the input entity. NOTE: like lua tables, entity slots use 1-based indexing. The function will raise a fatal error for out-of-bounds access.
 ```lua
