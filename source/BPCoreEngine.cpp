@@ -28,6 +28,23 @@ static void* umm_lua_alloc(void*, void* ptr, size_t, size_t nsize)
 
 
 
+extern "C" {
+void* bpcore_malloc(size_t size)
+{
+    return umm_malloc(size);
+}
+
+
+void bpcore_free(void* ptr)
+{
+    return umm_free(ptr);
+}
+
+
+}
+
+
+
 struct Entity
 {
     float* var_slots_ = nullptr;
@@ -40,8 +57,8 @@ struct Entity
     u16 tag_ = 0;
     u8 hitbox_size_x_ = 16;
     u8 hitbox_size_y_ = 16;
-    s8 hitbox_origin_x_ = 8;
-    s8 hitbox_origin_y_ = 8;
+    s8 hitbox_origin_x_ = 0;
+    s8 hitbox_origin_y_ = 0;
     u8 z_ = 0;
     u8 x_flip_ : 1;
     u8 y_flip_ : 1;
@@ -299,6 +316,19 @@ static const struct {
 
          lua_pushlightuserdata(L, e);
          return 1;
+     }},
+    {"dofile",
+     [](lua_State* L) -> int {
+         auto fname = lua_tostring(L, 1);
+         auto script = platform->fs().get_file(fname).data_;
+         if (luaL_loadstring(L, script)) {
+             luaL_error(L, lua_tostring(L, -1));
+         }
+         if (lua_pcall(L, 0, 0, 0)) {
+             luaL_error(L, lua_tostring(L, -1));
+             return 1;
+         }
+         return 0;
      }},
     {"entanim",
      [](lua_State* L) -> int {
@@ -1270,6 +1300,14 @@ static int lua_panic(lua_State* L)
 }
 
 
+#ifdef __EXTENSION_INTERFACE__
+extern "C"
+{
+void bpcore_extension_main(lua_State* L);
+}
+#endif
+
+
 BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
 {
     platform = &pf;
@@ -1308,6 +1346,10 @@ BPCoreEngine::BPCoreEngine(Platform& pf) : lua_(nullptr)
         lua_setglobal(lua_, "_IRAM");
         lua_pushinteger(lua_, (intptr_t)(byte*)0x0E000000);
         lua_setglobal(lua_, "_SRAM");
+
+#ifdef __EXTENSION_INTERFACE__
+        bpcore_extension_main(lua_);
+#endif
 
         {
             StringBuffer<32> fmt;

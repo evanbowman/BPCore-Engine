@@ -159,6 +159,9 @@ if(APPLE)
 else()
   add_executable(BPCoreEngine
     ${SOURCES})
+
+  add_library(BPCoreEngine_Ext
+    ${SOURCES})
 endif()
 
 
@@ -370,6 +373,14 @@ if(GAMEBOY_ADVANCE)
     -mcpu=arm7tdmi
     -mtune=arm7tdmi)
 
+  target_compile_options(BPCoreEngine_Ext PRIVATE
+    -D__GBA__
+    -D__EXTENSION_INTERFACE__
+    -mthumb
+    -mthumb-interwork
+    -mcpu=arm7tdmi
+    -mtune=arm7tdmi)
+
   add_custom_command(TARGET BPCoreEngine POST_BUILD
     COMMENT "building cartridge"
     COMMAND ${DEVKITARM}/bin/arm-none-eabi-objcopy -O binary BPCoreEngine BPCoreEngine.gba
@@ -414,6 +425,8 @@ endif()
 target_compile_options(BPCoreEngine PRIVATE
   ${SHARED_COMPILE_OPTIONS})
 
+target_compile_options(BPCoreEngine_Ext PRIVATE
+  ${SHARED_COMPILE_OPTIONS})
 
 
 file(GLOB_RECURSE SOURCES "${SOURCE_DIR}/*.cpp")

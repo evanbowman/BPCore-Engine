@@ -178,7 +178,7 @@ local t = entag(entity)  -- retrieve entity tag
 ```
 
 * `enthb(entity, x_origin, y_origin, width, height)`
-Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after adding x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :) Returns the input entity. By default, an entity will use a 16x16 hitbox, where the hitbox anchor is at 8,8 (the center of the 16x16 hitbox), to match the engine's sprite size.
+Set a hitbox for an entity. Hitboxes will be anchored to the center of an entity, after subtracting x_origin and y_origin. Hitbox width and height may not exceed 255. But the gba screen is only 240x160, so hopefully this won't be a problem :) Returns the input entity. By default, an entity will use a 16x16 hitbox, where the hitbox anchor is at 0,0 (the center of the 16x16 hitbox), to match the engine's sprite size.
 
 * `entslots(entity, count)`
 Allocates `count` slots for entity data members. You may store integer values in an entity's slot array.
@@ -388,6 +388,10 @@ Result table format (string keys, integer values)
 
 * `_BP_VERSION`
 Starting with version 2021.9.12.0, the engine stores a version string in the `_BP_VERSION` variable.
+
+* `dofile(filename)`
+Evaluate code in a separate lua file. Putting all your code in one file may use less memory, but people may want to organize projects as separate files, especially if for shared code that you want to reference in different script contexts evaluated using `next_script()`. Unlike the standard lua dofile, _this function does not return a value_.
+
 
 ### Reserved words
 
