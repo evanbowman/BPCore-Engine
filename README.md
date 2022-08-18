@@ -27,6 +27,8 @@ The `build.lua` script parses a user-defined `manifest.lua` file, which tells th
 
 local app = {
    name = "TestApplication",
+   gamecode = "ABAB", -- Optional: set the game code in the rom header (four chars)
+   makercode = "BC",  -- Optional: set the maker code in the rom header (two chars)
 
    tilesets = {
       "overlay.bmp",

@@ -427,5 +427,85 @@ for i = 0, 48 do
    bundle:write("\0")
 end
 
+bundle:close()
+
+
+-- Reopen the application, to overwrite the ROM header.
+bundle = io.open(app_name, "r+")
+bundle:seek("set", 0xA0)
+
+local fullname = application["name"]
+local hdr_name = ""
+for i = 1, 12 do
+   if i < string.len(fullname) + 1 then
+      bundle:write(string.sub(fullname, i, i))
+   else
+      bundle:write(' ')
+   end
+end
+
+if application["gamecode"] then
+   local id = application["gamecode"]
+   id = id:gsub("^%l", string.upper)
+
+   bundle:seek("set", 0xAC)
+
+   for i = 1, 4 do
+      if i < string.len(id) + 1 then
+         bundle:write(string.sub(id, i, i))
+      else
+         bundle:write("N")
+      end
+   end
+end
+
+if application["makercode"] then
+   local id = application["makercode"]
+   id = id:gsub("^%l", string.upper)
+
+   bundle:seek("set", 0xB0)
+
+   for i = 1, 2 do
+      if i < string.len(id) + 1 then
+         bundle:write(string.sub(id, i, i))
+      else
+         bundle:write("N")
+      end
+   end
+end
+
+bundle:seek("set", 0xBD)
+bundle:write(string.char(0)) -- Clear the header compliment
+
+bundle:close()
+
+
+-- Header checksum calculation (the rom won't load without a correct header!)
+-- Reopen the application in read binary mode.
+bundle = io.open(app_name, "rb")
+local checksum = 0
+local i = 0xA0
+bundle:seek("set", i)
+while i ~= 0xBD do
+   checksum = checksum + string.byte(bundle:read(1))
+   if checksum > 255 then
+      checksum = checksum - 256
+   end
+   i = i + 1
+end
+checksum = 0x19 + checksum
+if checksum > 255 then
+   checksum = checksum - 256
+end
+checksum = -checksum + 256
+
+
+bundle:close()
+
+
+-- Write the header compliment
+bundle = io.open(app_name, "r+")
+bundle:seek("set", 0xBD)
+bundle:write(string.char(checksum))
 
 bundle:close()
