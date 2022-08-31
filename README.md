@@ -439,6 +439,7 @@ For a project template, see [here](https://github.com/evanbowman/bpcore-project-
 * [Unicode eBook Reader](https://github.com/evanbowman/bpcore-gba-book-reader)
 * [Simple Image Demo](https://github.com/evanbowman/bpcore-simple-image-demo)
 * [Fullscreen Image Demo](https://github.com/evanbowman/bpcore-fullscreen-image-demo)
+* [Gif demo](https://github.com/evanbowman/bpcore-gif-demo)
 
 ## A tiny demo
 ``` Lua
