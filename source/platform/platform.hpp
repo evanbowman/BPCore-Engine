@@ -169,10 +169,21 @@ public:
 
     using FailureReason = StringBuffer<48>;
 
-    std::optional<FailureReason> load_sprite_texture(const char* name);
-    std::optional<FailureReason> load_tile0_texture(const char* name);
-    std::optional<FailureReason> load_tile1_texture(const char* name);
-    std::optional<FailureReason> load_overlay_texture(const char* name);
+    std::optional<FailureReason> load_sprite_texture(const char* name,
+                                                     int addr,
+                                                     int len);
+
+    std::optional<FailureReason> load_tile0_texture(const char* name,
+                                                    int addr,
+                                                    int len);
+
+    std::optional<FailureReason> load_tile1_texture(const char* name,
+                                                    int addr,
+                                                    int len);
+
+    std::optional<FailureReason> load_overlay_texture(const char* name,
+                                                      int addr,
+                                                      int len);
 
     // Sleep halts the game for an amount of time equal to some number
     // of game updates. Given that the game should be running at

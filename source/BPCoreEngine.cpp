@@ -805,26 +805,35 @@ static const struct {
     {"txtr",
      [](lua_State* L) -> int {
          const int layer = lua_tonumber(L, 1);
-         const char* filename = lua_tostring(L, 2);
+         const int argc = lua_gettop(L);
+         int addr = 0;
+         int len = 0;
+         const char* filename = "";
+         if (argc == 3) {
+             addr = lua_tointeger(L, 2);
+             len = lua_tointeger(L, 3);
+         } else {
+             filename = lua_tostring(L, 2);
+         }
 
          std::optional<Platform::FailureReason> err;
 
          switch (static_cast<Layer>(layer)) {
          case Layer::overlay:
-             err = platform->load_overlay_texture(filename);
+             err = platform->load_overlay_texture(filename, addr, len);
              break;
 
          case Layer::map_1:
-             err = platform->load_tile1_texture(filename);
+             err = platform->load_tile1_texture(filename, addr, len);
              break;
 
          case Layer::map_0:
-             err = platform->load_tile0_texture(filename);
+             err = platform->load_tile0_texture(filename, addr, len);
              break;
 
          default:
              if (layer == 4) {
-                 err = platform->load_sprite_texture(filename);
+                 err = platform->load_sprite_texture(filename, addr, len);
              }
              break;
          }
@@ -1273,7 +1282,7 @@ static const struct {
 
 static void fatal_error(const char* heading, const char* error)
 {
-    platform->load_overlay_texture("overlay_text_key");
+    platform->load_overlay_texture("overlay_text_key", 0, 0);
 
     platform->speaker().stop_music();
     platform->fill_overlay(0);

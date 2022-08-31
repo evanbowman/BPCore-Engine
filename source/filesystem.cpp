@@ -81,6 +81,26 @@ int tonum(const char* str)
 }
 
 
+Filesystem::FileData Filesystem::get_file(int address, int len)
+{
+    return {(const char*)(intptr_t)address, (u32)len};
+}
+
+
+Filesystem::FileData Filesystem::next_file(int address, int len)
+{
+    address += len;
+    ++address; // null terminator
+    address += address % 4; // word padding
+
+    auto current =
+        reinterpret_cast<const FileInfo*>((const char*)(intptr_t)address);
+
+    return {(const char*)current + sizeof(FileInfo),
+            (u32)tonum(current->size_)};
+}
+
+
 Filesystem::FileData Filesystem::get_file(const char* name)
 {
     if (not addr_) {

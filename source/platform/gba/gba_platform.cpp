@@ -1280,13 +1280,14 @@ push_spritesheet_texture(const TextureData& info)
 
 
 std::optional<Platform::FailureReason>
-Platform::load_sprite_texture(const char* name)
+Platform::load_sprite_texture(const char* name, int addr, int len)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
 
-    const auto img = fs().get_file(name);
-    const auto palette = fs().get_file(palette_file.c_str());
+
+    const auto img = addr ? fs().get_file(addr, len) : fs().get_file(name);
+    const auto palette = addr ? fs().next_file(addr, len) : fs().get_file(palette_file.c_str());
 
     if (img.data_ and palette.data_) {
         memcpy(spritesheet_source_pal,
@@ -1369,13 +1370,13 @@ push_tile0_texture(const char* name, const TextureData& info)
 
 
 std::optional<Platform::FailureReason>
-Platform::load_tile0_texture(const char* name)
+Platform::load_tile0_texture(const char* name, int addr, int len)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
 
-    const auto img = fs().get_file(name);
-    const auto palette = fs().get_file(palette_file.c_str());
+    const auto img = addr ? fs().get_file(addr, len) : fs().get_file(name);
+    const auto palette = addr ? fs().next_file(addr, len) : fs().get_file(palette_file.c_str());
 
     if (img.data_ and palette.data_) {
 
@@ -1456,13 +1457,13 @@ push_tile1_texture(const char* name, const TextureData& info)
 
 
 std::optional<Platform::FailureReason>
-Platform::load_tile1_texture(const char* name)
+Platform::load_tile1_texture(const char* name, int addr, int len)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
 
-    const auto img = fs().get_file(name);
-    const auto palette = fs().get_file(palette_file.c_str());
+    const auto img = addr ? fs().get_file(addr, len) : fs().get_file(name);
+    const auto palette = addr ? fs().next_file(addr, len) : fs().get_file(palette_file.c_str());
 
     if (img.data_ and palette.data_) {
 
@@ -2521,13 +2522,13 @@ push_overlay_texture(const TextureData& info)
 
 
 std::optional<Platform::FailureReason>
-Platform::load_overlay_texture(const char* name)
+Platform::load_overlay_texture(const char* name, int addr, int len)
 {
     StringBuffer<48> palette_file(name);
     palette_file += ".pal";
 
-    const auto img = fs().get_file(name);
-    const auto palette = fs().get_file(palette_file.c_str());
+    const auto img = addr ? fs().get_file(addr, len) : fs().get_file(name);
+    const auto palette = addr ? fs().next_file(addr, len) : fs().get_file(palette_file.c_str());
 
     if (img.data_ and palette.data_) {
 
