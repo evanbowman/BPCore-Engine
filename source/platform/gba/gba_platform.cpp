@@ -1692,12 +1692,20 @@ SynchronizedBase::~SynchronizedBase()
 #include "persistentData.hpp"
 
 
-// NOTE: PersistentData goes first into flash memory, followed by the game's
-// logs. The platform implementation isn't supposed to need to know about the
-// layout of the game's save data, but, in this particular implementation, we're
-// using the cartridge ram as a logfile.
 static const u32 initial_log_write_loc = 32000 - 16;
 static u32 log_write_loc = initial_log_write_loc;
+
+#define REG_DEBUG_ENABLE (volatile u16*)0x4FFF780
+#define REG_DEBUG_FLAGS (volatile u16*)0x4FFF700
+#define REG_DEBUG_STRING (char*)0x4FFF600
+#define MGBA_LOG_DEBUG 4
+
+
+int mgba_detect()
+{
+    *REG_DEBUG_ENABLE = 0xC0DE;
+    return *REG_DEBUG_ENABLE == 0x1DEA;
+}
 
 
 Platform::Logger::Logger()
@@ -1716,73 +1724,16 @@ void Platform::Logger::set_threshold(Severity severity)
 
 void Platform::Logger::log(Severity level, const char* msg)
 {
-    return;
-    if (static_cast<int>(level) < static_cast<int>(::log_threshold)) {
-        return;
+    if (mgba_detect()) {
+        auto len = str_len(msg);
+        if (len > 0x100) {
+            len = 0x100;
+        }
+        for (u32 i = 0; i < len; ++i) {
+            (REG_DEBUG_STRING)[i] = msg[i];
+        }
+        *REG_DEBUG_FLAGS = MGBA_LOG_DEBUG | 0x100;
     }
-
-    // We don't want to wear out the flash chip! The code below still works on
-    // flash though, if you just comment out the if statement below.
-    if (save_using_flash) {
-        return;
-    }
-
-    std::array<char, 256> buffer;
-
-    buffer[1] = ':';
-
-    switch (level) {
-    case Severity::debug:
-        buffer[0] = 'd';
-        break;
-
-    case Severity::info:
-        buffer[0] = 'i';
-        break;
-
-    case Severity::warning:
-        buffer[0] = 'w';
-        break;
-
-    case Severity::error:
-        buffer[0] = 'E';
-        break;
-
-    case Severity::count:
-        return;
-    }
-
-    const auto msg_size = str_len(msg);
-
-    u32 i;
-    constexpr size_t prefix_size = 2;
-
-    if (log_write_loc + prefix_size + msg_size + 2 >= 64000) {
-        // We cannot be certain of how much cartridge ram will be available. But
-        // 64k is a reasonable assumption. When we reach the end, wrap around to
-        // the beginning.
-        log_write_loc = initial_log_write_loc;
-    }
-
-
-    for (i = 0;
-         i < std::min(size_t(msg_size), buffer.size() - (prefix_size + 1));
-         ++i) {
-        buffer[i + prefix_size] = msg[i];
-    }
-    buffer[i + prefix_size] = '\n';
-    buffer[i + prefix_size + 1] =
-        '\n'; // This char will be overwritten, meant to identify
-              // the end of the log, in the case where the log wraps
-              // around.
-
-    if (save_using_flash) {
-        flash_save(buffer.data(), log_write_loc, buffer.size());
-    } else {
-        sram_save(buffer.data(), log_write_loc, buffer.size());
-    }
-
-    log_write_loc += msg_size + prefix_size + 1;
 }
 
 
@@ -1879,7 +1830,7 @@ static const AudioTrack* get_sound(const char* name)
 Microseconds Platform::Speaker::track_length(const char* name)
 {
     if (const auto music = find_music(name)) {
-        return (music->length_ * sizeof(u32)) / 0.016f;
+        return (music->length_ * (sizeof(u32))) / 0.016f;
     }
 
     if (const auto sound = get_sound(name)) {
@@ -2744,7 +2695,7 @@ void Platform::fill_overlay(u16 tile)
     u32* const mem = (u32*)overlay_back_buffer;
     overlay_back_buffer_changed = true;
 
-    for (unsigned i = 0; i < sizeof(ScreenBlock) / sizeof(u32); ++i) {
+    for (unsigned i = 0; i < sizeof(ScreenBlock) / (sizeof(u32)); ++i) {
         mem[i] = fill_word;
     }
 
