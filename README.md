@@ -398,6 +398,9 @@ Result table format (string keys, integer values)
 }
 ```
 
+* `log(string)`
+Write a log message to the mGBA emulator's logging window, at log severity debug.
+
 (Added in version 2021.9.12.1)
 
 * `_BP_VERSION`
