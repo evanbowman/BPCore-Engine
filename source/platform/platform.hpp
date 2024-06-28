@@ -310,6 +310,8 @@ public:
 
         Vec2<u32> size() const;
 
+        void set_frame_stalls(int stall);
+
         void set_contrast(Contrast contrast);
 
         Contrast get_contrast() const;

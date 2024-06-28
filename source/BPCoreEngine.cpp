@@ -328,6 +328,20 @@ static const struct {
          lua_pushlightuserdata(L, e);
          return 1;
      }},
+    {"flimit",
+     [](lua_State* L) -> int {
+         auto lim = lua_tointeger(L, 1);
+         switch (lim) {
+         case 30:
+             platform->screen().set_frame_stalls(1);
+             break;
+
+         case 60:
+             platform->screen().set_frame_stalls(0);
+             break;
+         };
+         return 0;
+     }},
     {"dofile",
      [](lua_State* L) -> int {
          auto fname = lua_tostring(L, 1);

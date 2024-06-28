@@ -134,18 +134,11 @@ Clear all sprites from the screen. Should be called once per frame. `clear()` al
 * `display()`
 Show any recent `spr()` and `tile()` calls.
 
+* `flimit(fps)`
+Set a framerate limit. Values of 30 or 60 supported.
+
 * `rline()`
-Returns the current raster line number. The GBA screen has 160 lines. You can use this function to implement a framerate limit, or for code profiling purposes. If the raster line advances past 160, you've spent too long updating data durnig the current frame and the game will lag. If you want to target 30fps, to give yourself more time for game updates:
-```lua
--- game logic ...
-
-if rline() > 160 then
-    clear() -- framerate limit to max 30fps, by inserting another vsync.
-end
-clear() -- the regular clear()/display() calls
-display()
-
-```
+Returns the current raster line number. The GBA screen has 160 lines. If the raster line advances past 160, you've spent too long updating data during the current frame and the game will lag.
 
 
 ### Entities

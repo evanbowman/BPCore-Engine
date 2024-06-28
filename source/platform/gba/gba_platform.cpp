@@ -410,6 +410,16 @@ void Platform::set_priorities(int sprite_prior,
 }
 
 
+int frame_stall_count = 0;
+int vblank_count = 0;
+
+
+void Platform::Screen::set_frame_stalls(int stall_count)
+{
+    frame_stall_count = stall_count;
+}
+
+
 void Platform::Screen::init_layers(int background_prior,
                                    int tile0_prior,
                                    int tile1_prior)
@@ -747,33 +757,14 @@ void Platform::Screen::clear()
         }
     }
 
-    // static int index;
-    // constexpr int sample_count = 32;
-    // static int buffer[32];
-    // static std::optional<Text> text;
-
-    // auto tm = platform->stopwatch().stop();
-
-    // if (index < sample_count) {
-    //     buffer[index++] = tm;
-
-    // } else {
-    //     index = 0;
-
-    //     int accum = 0;
-    //     for (int i = 0; i < sample_count; ++i) {
-    //         accum += buffer[i];
-    //     }
-
-    //     accum /= 32;
-
-    //     text.emplace(*platform, OverlayCoord{1, 1});
-    //     text->assign(((accum * 59.59f) / 16666666.66) * 100);
-    //     text->append(" percent");
-    // }
+    if (vblank_count < frame_stall_count) {
+        VBlankIntrWait();
+    }
 
     // VSync
     VBlankIntrWait();
+
+    vblank_count = 0;
 }
 
 
@@ -1508,9 +1499,11 @@ void Platform::sleep(u32 frames)
 
     irqDisable(IRQ_TIMER3);
 
+    auto old_vbl = vblank_count;
     while (frames--) {
         VBlankIntrWait();
     }
+    vblank_count = old_vbl;
 
     irqEnable(IRQ_TIMER3);
 }
@@ -2078,21 +2071,21 @@ static Microseconds watchdog_counter;
 static std::optional<Platform::WatchdogCallback> watchdog_callback;
 
 
-static void watchdog_update_isr()
+
+static void vblank_isr()
 {
-    // NOTE: The watchdog timer is configured to have a period of 61.04
-    // microseconds. 0xffff is the max counter value upon overflow.
-    ::watchdog_counter += 61 * 0xffff;
+    const auto ten_seconds = 600; // approx. 60 fps
+    watchdog_counter += 1;
 
-    if (::watchdog_counter > seconds(10)) {
-        ::watchdog_counter = 0;
-
+    if (UNLIKELY(::watchdog_counter > ten_seconds)) {
         if (::platform and ::watchdog_callback) {
             (*::watchdog_callback)(*platform);
         }
 
         restart();
     }
+
+    ++vblank_count;
 }
 
 
@@ -2110,16 +2103,6 @@ void Platform::on_watchdog_timeout(WatchdogCallback callback)
 
 __attribute__((section(".iwram"), long_call)) void
 cartridge_interrupt_handler();
-
-
-static void enable_watchdog()
-{
-    irqEnable(IRQ_TIMER2);
-    irqSet(IRQ_TIMER2, watchdog_update_isr);
-
-    REG_TM2CNT_H = 0x00C3;
-    REG_TM2CNT_L = 0;
-}
 
 
 bool use_optimized_waitstates = false;
@@ -2362,7 +2345,7 @@ Platform::Platform()
 
     audio_start();
 
-    enable_watchdog();
+    irqSet(IRQ_VBLANK, vblank_isr);
 
     irqEnable(IRQ_GAMEPAK);
     irqSet(IRQ_GAMEPAK, cartridge_interrupt_handler);
@@ -3508,9 +3491,6 @@ void Platform::NetworkPeer::disconnect()
         info(*::platform, "disconnected!");
         multiplayer_connected = false;
         irqDisable(IRQ_SERIAL);
-        if (multiplayer_is_master()) {
-            enable_watchdog();
-        }
         REG_SIOCNT = 0;
 
         auto& mc = multiplayer_comms;
